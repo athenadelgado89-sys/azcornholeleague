@@ -84,7 +84,12 @@
   function renderEvents() {
     const box = $("#event-list"), today = todayStr();
     if (!S.loaded && S.status === "loading") { box.innerHTML = `<div class="empty"><b>Loading events…</b></div>`; return; }
-    let list = S.events.filter(e => (S.when === "upcoming" ? e.event_date >= today : e.event_date < today));
+    // When a club posts an event by hand that Scoreholio also imported, show only the imported copy.
+    const normTitle = t => (t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const imported = S.events.filter(e => e.source === "scoreholio");
+    const isDuplicate = m => m.source !== "scoreholio" && imported.some(i => i.club_id === m.club_id && i.event_date === m.event_date &&
+      (normTitle(i.title) === normTitle(m.title) || (m.scoreholio && i.scoreholio && m.scoreholio.replace(/\/$/, "") === i.scoreholio.replace(/\/$/, ""))));
+    let list = S.events.filter(e => (S.when === "upcoming" ? e.event_date >= today : e.event_date < today) && !isDuplicate(e));
     if (S.clubFilter) list = list.filter(e => e.club_id === S.clubFilter);
     const key = e => e.event_date + (e.start_time || "");
     list.sort((a, b) => (S.when === "upcoming" ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))));
@@ -106,7 +111,10 @@
         <div style="min-width:0">
           <h3>${esc(e.title)}</h3>
           <div class="meta"><span><b>${esc(club ? club.name : "AZ club")}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
-          ${(e.entry_fee || Number.isInteger(e.registered_teams)) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${Number.isInteger(e.registered_teams) ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : ""}
+          ${(() => {
+            const showReg = Number.isInteger(e.registered_teams) && (e.registered_teams > 0 || e.max_teams);
+            return (e.entry_fee || showReg) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${showReg ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : "";
+          })()}
           ${e.details ? `<p class="details">${esc(e.details)}</p>` : ""}
           <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
         </div>
