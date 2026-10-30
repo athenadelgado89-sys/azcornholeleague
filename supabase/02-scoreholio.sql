@@ -34,3 +34,9 @@ alter table public.events add column if not exists synced_at       timestamptz;
 -- Let admins hide an imported event without the importer re-adding it
 alter table public.events drop constraint if exists events_status_check;
 alter table public.events add constraint events_status_check check (status in ('pending','approved','hidden'));
+
+-- The importer (GitHub Actions) uses the Supabase secret key, which acts as service_role.
+-- New tables aren't exposed automatically in this project, so grant it access explicitly.
+grant select, insert, update, delete on public.scoreholio_organizers to service_role;
+grant select, insert, update, delete on public.events to service_role;
+grant select on public.clubs to service_role;
