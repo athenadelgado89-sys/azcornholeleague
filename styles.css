@@ -204,3 +204,8 @@ footer a:hover{color:var(--ink)}
 .live-row b{display:block}
 .live-row span{font-size:13px;color:var(--muted)}
 .via{font-size:12px;color:var(--muted)}
+.details-toggle{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer}
+.details-toggle:hover{border-color:var(--copper);color:var(--copper)}
+.details-toggle .chev{display:inline-block;transition:transform .15s ease}
+.details-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.event .details{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}

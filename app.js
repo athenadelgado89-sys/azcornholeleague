@@ -2,7 +2,7 @@
 (() => {
   const { sb, configured, $, esc, normUrl, safeHref, fileUrl, initials, parseDate, todayStr, fmtTime, uuid, toast, upload, VENDOR_CATS, FORMATS } = window.AZCL;
 
-  const S = { clubs: [], vendors: [], events: [], loaded: false, status: "loading", when: "upcoming", clubFilter: "", q: "", vq: "", vcat: "" };
+  const S = { open: new Set(), clubs: [], vendors: [], events: [], loaded: false, status: "loading", when: "upcoming", clubFilter: "", q: "", vq: "", vcat: "" };
   const clubById = id => S.clubs.find(c => c.id === id);
   $("#year").textContent = new Date().getFullYear();
 
@@ -115,8 +115,8 @@
             const showReg = Number.isInteger(e.registered_teams) && (e.registered_teams > 0 || e.max_teams);
             return (e.entry_fee || showReg) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${showReg ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : "";
           })()}
-          ${e.details ? `<p class="details">${esc(e.details)}</p>` : ""}
-          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
+          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.details ? `<button type="button" class="details-toggle" data-details="${esc(e.id)}" aria-expanded="${S.open.has(e.id)}" aria-controls="det-${esc(e.id)}">Details <span class="chev" aria-hidden="true">▾</span></button>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
+          ${e.details ? `<p class="details" id="det-${esc(e.id)}" ${S.open.has(e.id) ? "" : "hidden"}>${esc(e.details)}</p>` : ""}
         </div>
         <div class="flyer-col">${flyer}</div>
       </article>`;
@@ -159,6 +159,13 @@
   const openDlg = id => { const d = document.getElementById(id); if (!d.open) d.showModal(); };
   const closeDlg = d => d && d.open && d.close();
   document.addEventListener("click", e => {
+    const dt = e.target.closest("[data-details]");
+    if (dt) {
+      const id = dt.dataset.details, panel = document.getElementById("det-" + id), open = dt.getAttribute("aria-expanded") !== "true";
+      dt.setAttribute("aria-expanded", String(open)); if (panel) panel.hidden = !open;
+      open ? S.open.add(id) : S.open.delete(id);
+      return;
+    }
     const t = e.target.closest("[data-open],[data-close],[data-edit-club],[data-edit-vendor],[data-club-events],[data-flyer],[data-when]");
     if (!t) return;
     if (t.dataset.open === "club") openClubForm(null);
