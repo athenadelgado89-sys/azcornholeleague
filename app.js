@@ -106,8 +106,9 @@
         <div style="min-width:0">
           <h3>${esc(e.title)}</h3>
           <div class="meta"><span><b>${esc(club ? club.name : "AZ club")}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
+          ${(e.entry_fee || Number.isInteger(e.registered_teams)) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${Number.isInteger(e.registered_teams) ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : ""}
           ${e.details ? `<p class="details">${esc(e.details)}</p>` : ""}
-          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}</div>
+          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
         </div>
         <div class="flyer-col">${flyer}</div>
       </article>`;
@@ -126,13 +127,19 @@
   }
 
   /* ---------- Loading ---------- */
+  // Newer columns come from the Scoreholio import; fall back if that database step hasn't been run.
+  const EV_BASE = "id,club_id,title,event_date,start_time,format,location,scoreholio,details,flyer_path,flyer_type";
+  async function loadEvents() {
+    const r = await sb.from("events").select(EV_BASE + ",source,entry_fee,registered_teams,max_teams").eq("status", "approved").order("event_date");
+    return r.error ? sb.from("events").select(EV_BASE).eq("status", "approved").order("event_date") : r;
+  }
   async function load() {
     if (!sb) { S.status = configured ? "error" : "unconfigured"; render(); return; }
     try {
       const [c, v, e] = await Promise.all([
         sb.from("clubs").select("id,name,city,logo_path,website,facebook,instagram,tiktok,youtube,scoreholio").eq("status", "approved").order("name"),
         sb.from("vendors").select("id,name,category,city,blurb,logo_path,website,shop,facebook,instagram,tiktok,youtube").eq("status", "approved").order("name"),
-        sb.from("events").select("id,club_id,title,event_date,start_time,format,location,scoreholio,details,flyer_path,flyer_type").eq("status", "approved").order("event_date")
+        loadEvents()
       ]);
       if (c.error || v.error || e.error) throw c.error || v.error || e.error;
       S.clubs = c.data; S.vendors = v.data; S.events = e.data; S.loaded = true; S.status = "ready";

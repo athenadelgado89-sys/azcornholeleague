@@ -1,7 +1,7 @@
 // AZCL admin page: approve or reject submissions and remove live listings.
 (() => {
   const { sb, $, esc, safeHref, fileUrl, initials, fmtDate, fmtTime, toast } = window.AZCL;
-  const A = { tab: "pending", clubs: [], vendors: [], events: [], contacts: {}, confirm: null, busy: false };
+  const A = { tab: "pending", clubs: [], vendors: [], events: [], contacts: {}, orgs: [], orgsReady: false, confirm: null, busy: false };
 
   if (!sb) { $("#admin-note").innerHTML = `<div class="notice">The database isn't connected yet. Add the Supabase details to config.js.</div>`; return; }
 
@@ -35,6 +35,8 @@
     const err = c.error || v.error || e.error;
     if (err) { $("#admin-body").innerHTML = `<div class="notice">Couldn't load: ${esc(err.message)}</div>`; return; }
     A.clubs = c.data; A.vendors = v.data; A.events = e.data;
+    const o = await sb.from("scoreholio_organizers").select("*").order("name");
+    A.orgsReady = !o.error; A.orgs = o.data || [];
     const pendingIds = [...A.clubs, ...A.vendors, ...A.events].filter(x => x.status === "pending").map(x => x.id);
     A.contacts = {};
     if (pendingIds.length) {
@@ -85,13 +87,18 @@
   function eventCard(ev, pending) {
     const club = A.clubs.find(c => c.id === ev.club_id);
     const flyer = ev.flyer_path ? (/pdf/i.test(ev.flyer_type || ev.flyer_path) ? `<a class="thumb" href="${esc(fileUrl(ev.flyer_path))}" target="_blank" rel="noopener" style="font-size:12px">PDF</a>` : `<a href="${esc(fileUrl(ev.flyer_path))}" target="_blank" rel="noopener"><img class="thumb" src="${esc(fileUrl(ev.flyer_path))}" alt="Flyer"></a>`) : `<span class="thumb">EV</span>`;
-    const act = pending ? actions("event", ev.id) : (A.confirm === "remove:" + ev.id
+    const imported = ev.source === "scoreholio";
+    const act = pending ? actions("event", ev.id) : imported
+      ? `<div class="event-actions">${ev.status === "hidden"
+          ? `<button class="btn btn-primary btn-sm" data-act="unhide" data-id="${ev.id}">Show on site again</button>`
+          : `<button class="btn btn-ghost btn-sm" data-act="hide" data-id="${ev.id}">Hide from site</button>`}</div>`
+      : (A.confirm === "remove:" + ev.id
       ? `<div class="event-actions"><button class="btn btn-sm btn-danger" data-act="remove-yes" data-type="event" data-id="${ev.id}">Confirm remove</button><button class="linkbtn" data-act="cancel">Keep</button></div>`
       : `<div class="event-actions"><button class="btn btn-ghost btn-sm" data-act="remove" data-type="event" data-id="${ev.id}">Remove from site</button></div>`);
     return `<article class="qitem">
       ${flyer}
       <div style="min-width:0">
-        ${pending ? `<span class="badge-new">New event</span>` : ""}
+        ${pending ? `<span class="badge-new">New event</span>` : ""}${imported ? `<span class="badge-new">From Scoreholio</span> ` : ""}${ev.status === "hidden" ? `<span class="badge-upd">Hidden</span>` : ""}
         <h3>${esc(ev.title)}</h3>
         <dl class="kv">
           <dt>Club</dt><dd>${esc(club ? club.name : "Unknown club")}</dd>
@@ -121,6 +128,8 @@
   function render() {
     const pc = A.clubs.filter(x => x.status === "pending"), pv = A.vendors.filter(x => x.status === "pending"), pe = A.events.filter(x => x.status === "pending");
     $("#count-pending").textContent = pc.length + pv.length + pe.length;
+    const unlinked = A.orgs.filter(o => !o.ignored && !A.clubs.some(c => c.scoreholio_organizer_id === o.id));
+    $("#count-sh").textContent = unlinked.length; $("#count-sh").hidden = !unlinked.length;
     document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === A.tab)));
     const body = $("#admin-body");
     const section = (title, html) => `<h2 style="font-size:24px;text-transform:uppercase;margin:24px 0 12px">${title}</h2>${html}`;
@@ -130,14 +139,52 @@
         (pe.length ? section(`Events (${pe.length})`, `<div class="queue">${pe.map(e => eventCard(e, true)).join("")}</div>`) : "") +
         (pc.length ? section(`Clubs (${pc.length})`, `<div class="queue">${pc.map(c => listingCard("club", c, CLUB_FIELDS)).join("")}</div>`) : "") +
         (pv.length ? section(`Vendors (${pv.length})`, `<div class="queue">${pv.map(v => listingCard("vendor", v, VENDOR_FIELDS)).join("")}</div>`) : "");
+    } else if (A.tab === "scoreholio") {
+      body.innerHTML = renderScoreholio(unlinked);
     } else if (A.tab === "live-events") {
-      const live = A.events.filter(x => x.status === "approved").sort((a, b) => b.event_date.localeCompare(a.event_date));
+      const live = A.events.filter(x => x.status === "approved" || x.status === "hidden").sort((a, b) => b.event_date.localeCompare(a.event_date));
       body.innerHTML = live.length ? `<div class="queue">${live.map(e => eventCard(e, false)).join("")}</div>` : `<div class="empty"><b>No live events yet</b>Approved events show here.</div>`;
     } else {
       const type = A.tab === "live-clubs" ? "club" : "vendor";
       const live = (type === "club" ? A.clubs : A.vendors).filter(x => x.status === "approved");
       body.innerHTML = `<p style="color:var(--muted);margin-top:0">To change a listing, use "Update listing" on the public site, then approve it here.</p>` + live.map(x => liveRow(type, x)).join("");
     }
+  }
+
+  /* ---------- Scoreholio organizers ---------- */
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(cornhole|club|league|the|az|arizona|llc|baggers?)\b/g, " ").split(/\s+/).filter(Boolean);
+  function suggestClub(org) {
+    const ot = new Set(norm(org.name)); let best = null, score = 0;
+    for (const c of A.clubs.filter(c => c.status === "approved" && !c.scoreholio_organizer_id)) {
+      const s = norm(c.name).filter(w => ot.has(w)).length;
+      if (s > score) { score = s; best = c; }
+    }
+    return best;
+  }
+  function renderScoreholio(unlinked) {
+    if (!A.orgsReady) return `<div class="notice">The Scoreholio import isn't set up yet. Run the 02-scoreholio.sql setup in Supabase first.</div>`;
+    const approvedClubs = A.clubs.filter(c => c.status === "approved");
+    const linked = A.orgs.filter(o => A.clubs.some(c => c.scoreholio_organizer_id === o.id));
+    const ignored = A.orgs.filter(o => o.ignored && !linked.includes(o));
+    const next = o => o.next_event_name ? `${o.upcoming_count} upcoming · next: ${esc(o.next_event_name)}, ${esc(fmtDate(o.next_event_date))}${o.next_event_city ? " in " + esc(o.next_event_city) : ""}` : "No upcoming tournaments";
+    const row = (o, controls) => `<div class="live-row"><span class="thumb" style="width:44px;height:44px;font-size:16px">${esc(initials(o.name))}</span><div><b>${esc(o.name)}</b><span>${next(o)}</span></div>${controls}</div>`;
+    const intro = `<p style="color:var(--muted);margin-top:0;max-width:70ch">These Scoreholio organizers are running public cornhole tournaments in Arizona. Link each one to its club, and its tournaments will show on AZ Events automatically. Scoreholio is checked every hour.</p>`;
+    if (!A.orgs.length) return intro + `<div class="empty"><b>No organizers found yet</b>They appear here after the first hourly import runs.</div>`;
+    const toLink = unlinked.map(o => {
+      const sug = suggestClub(o);
+      const opts = approvedClubs.filter(c => !c.scoreholio_organizer_id).map(c => `<option value="${c.id}" ${sug && sug.id === c.id ? "selected" : ""}>${esc(c.name)} (${esc(c.city)})</option>`).join("");
+      return row(o, `<select id="link-${esc(o.id)}" aria-label="Club for ${esc(o.name)}" style="max-width:220px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface)"><option value="">Choose club…</option>${opts}</select>
+        <button class="btn btn-primary btn-sm" data-act="link" data-id="${esc(o.id)}">Link</button>
+        <button class="linkbtn" data-act="ignore" data-id="${esc(o.id)}">Ignore</button>`);
+    }).join("");
+    const linkedHtml = linked.map(o => {
+      const c = A.clubs.find(c => c.scoreholio_organizer_id === o.id);
+      return row(o, `<span class="tag">→ ${esc(c.name)}</span><button class="linkbtn" data-act="unlink" data-id="${esc(c.id)}">Unlink</button>`);
+    }).join("");
+    const ignoredHtml = ignored.map(o => row(o, `<button class="linkbtn" data-act="unignore" data-id="${esc(o.id)}">Stop ignoring</button>`)).join("");
+    const h = t => `<h2 style="font-size:22px;text-transform:uppercase;margin:24px 0 8px">${t}</h2>`;
+    return intro + (toLink ? h(`Needs a club (${unlinked.length})`) + toLink : "") + (linkedHtml ? h(`Linked (${linked.length})`) + linkedHtml : "") + (ignoredHtml ? h(`Ignored (${ignored.length})`) + ignoredHtml : "")
+      + `<p style="color:var(--muted);font-size:13px;margin-top:20px">New links take effect at the next hourly import. To import right away, open the GitHub repository → Actions → Sync Scoreholio events → Run workflow.</p>`;
   }
 
   /* ---------- Actions ---------- */
@@ -174,6 +221,16 @@
     A.busy = true; b.disabled = true;
     try {
       if (act === "approve") { await approve(type, id); toast("Approved. It's live on the site."); }
+      if (act === "hide" || act === "unhide") { const { error } = await sb.from("events").update({ status: act === "hide" ? "hidden" : "approved" }).eq("id", id); if (error) throw error; toast(act === "hide" ? "Hidden from the site." : "Showing on the site again."); }
+      if (act === "link") {
+        const clubId = document.getElementById("link-" + id).value;
+        if (!clubId) throw new Error("choose a club first");
+        const { error } = await sb.from("clubs").update({ scoreholio_organizer_id: id }).eq("id", clubId); if (error) throw error;
+        await sb.from("scoreholio_organizers").update({ ignored: false }).eq("id", id);
+        toast("Linked. Their tournaments arrive at the next hourly import.");
+      }
+      if (act === "unlink") { const { error } = await sb.from("clubs").update({ scoreholio_organizer_id: null }).eq("id", id); if (error) throw error; toast("Unlinked. Their imported events are removed at the next import."); }
+      if (act === "ignore" || act === "unignore") { const { error } = await sb.from("scoreholio_organizers").update({ ignored: act === "ignore" }).eq("id", id); if (error) throw error; toast(act === "ignore" ? "Ignored." : "Moved back to Needs a club."); }
       if (act === "reject-yes") { await removeRow(type, id); toast("Rejected and removed."); }
       if (act === "remove-yes") { await removeRow(type, id); toast("Removed from the site."); }
     } catch (x) { toast("Couldn't do that: " + (x.message || "try again")); }

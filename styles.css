@@ -203,3 +203,4 @@ footer a:hover{color:var(--ink)}
 .live-row > div{flex:1;min-width:0}
 .live-row b{display:block}
 .live-row span{font-size:13px;color:var(--muted)}
+.via{font-size:12px;color:var(--muted)}

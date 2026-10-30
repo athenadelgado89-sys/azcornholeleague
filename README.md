@@ -11,3 +11,11 @@ The site at **azcornholeleague.com**: club directory, vendor directory and the A
 
 Hosting: GitHub Pages (from the `main` branch). Data and uploads: Supabase.
 Submissions from clubs, vendors and directors stay hidden until an admin approves them.
+
+## Scoreholio import
+`scripts/sync-scoreholio.mjs` runs every hour on GitHub Actions (`.github/workflows/sync-scoreholio.yml`).
+It finds public cornhole tournaments in Arizona through the Scoreholio API and adds those from
+organizers linked to a club (Admin → Scoreholio tab) to AZ Events.
+Setup: run `supabase/02-scoreholio.sql` once, then add repository secrets `SCOREHOLIO_API_KEY`,
+`SUPABASE_URL` and `SUPABASE_SECRET_KEY` (Settings → Secrets and variables → Actions).
+Neither key may ever go in the website files.
