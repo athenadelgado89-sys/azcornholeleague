@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>AZCL Admin</title>
+<link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="Back to the AZCL website">
+      <img class="brand-mark" src="assets/mark.png" alt="" width="54" height="44">
+      <span><b>AZCL Admin</b><small>Review and approve</small></span>
+    </a>
+    <a class="btn btn-ghost btn-sm" href="./" style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">View site</a>
+    <button class="btn btn-ghost btn-sm" type="button" id="signout" hidden style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">Sign out</button>
+  </div>
+</header>
+
+<main class="wrap page">
+  <section id="login" hidden>
+    <div class="admin-login">
+      <h1>Admin sign in</h1>
+      <p style="color:var(--muted);margin:0">For AZCL administrators only.</p>
+      <form id="login-form" novalidate>
+        <div class="fld"><label for="login-email">Email</label><input id="login-email" type="email" autocomplete="username" required></div>
+        <div class="fld"><label for="login-pass">Password</label><input id="login-pass" type="password" autocomplete="current-password" required></div>
+        <div class="form-foot"><span class="err" id="login-err" role="alert"></span><button class="btn btn-primary" type="submit" id="login-btn">Sign in</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="panel" hidden>
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">AZCL Admin Verification</span>
+        <h1>Review queue</h1>
+        <p>New listings, listing updates and events wait here until you approve them. Approved items go live on the site right away.</p>
+      </div>
+    </div>
+    <div class="tabs" role="group" aria-label="Show">
+      <button type="button" data-tab="pending" aria-pressed="true">Waiting for review<span class="count" id="count-pending">0</span></button>
+      <button type="button" data-tab="live-events" aria-pressed="false">Live events</button>
+      <button type="button" data-tab="live-clubs" aria-pressed="false">Live clubs</button>
+      <button type="button" data-tab="live-vendors" aria-pressed="false">Live vendors</button>
+    </div>
+    <div id="admin-body"></div>
+  </section>
+
+  <div id="admin-note"></div>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

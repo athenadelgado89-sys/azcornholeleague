@@ -1,0 +1,310 @@
+// Public AZCL website: directories, events calendar and submission forms.
+(() => {
+  const { sb, configured, $, esc, normUrl, safeHref, fileUrl, initials, parseDate, todayStr, fmtTime, uuid, toast, upload, VENDOR_CATS, FORMATS } = window.AZCL;
+
+  const S = { clubs: [], vendors: [], events: [], loaded: false, status: "loading", when: "upcoming", clubFilter: "", q: "", vq: "", vcat: "" };
+  const clubById = id => S.clubs.find(c => c.id === id);
+  $("#year").textContent = new Date().getFullYear();
+
+  // Fill static dropdowns
+  $("#vendor-cat-filter").innerHTML += VENDOR_CATS.map(c => `<option>${esc(c)}</option>`).join("");
+  $("#vendor-category").innerHTML += VENDOR_CATS.map(c => `<option>${esc(c)}</option>`).join("");
+  $("#ev-format").innerHTML += FORMATS.map(c => `<option>${esc(c)}</option>`).join("");
+  $("#ev-date").min = todayStr();
+
+  /* ---------- Routing ---------- */
+  const VIEWS = ["home", "clubs", "vendors", "events"];
+  function route() {
+    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    document.querySelectorAll("[data-view]").forEach(s => (s.hidden = s.dataset.view !== v));
+    document.querySelectorAll("[data-nav]").forEach(a => (a.dataset.nav === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    window.scrollTo(0, 0);
+  }
+  addEventListener("hashchange", route);
+
+  /* ---------- Rendering ---------- */
+  function statusNote() {
+    if (S.status === "unconfigured") return `<div class="notice">The directory database isn't connected yet.</div>`;
+    if (S.status === "error") return `<div class="notice">Listings couldn't load right now. Refresh the page to try again.</div>`;
+    return "";
+  }
+  const logoHtml = (path, name) => path
+    ? `<img class="club-logo" src="${esc(fileUrl(path))}" alt="${esc(name)} logo" data-i="${esc(initials(name))}" loading="lazy">`
+    : `<span class="club-logo" aria-hidden="true">${esc(initials(name))}</span>`;
+  const chip = (href, label, cls = "") => safeHref(href) ? `<a class="chip ${cls}" href="${esc(href)}" target="_blank" rel="noopener">${label}</a>` : "";
+
+  function renderClubs() {
+    const q = S.q.trim().toLowerCase();
+    const list = S.clubs.filter(c => !q || (c.name || "").toLowerCase().includes(q) || (c.city || "").toLowerCase().includes(q));
+    const grid = $("#club-grid");
+    if (!S.loaded && S.status === "loading") { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Loading clubs…</b></div>`; return; }
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>${q ? "No clubs match that search" : "No clubs listed yet"}</b>${q ? "Try a different club name or city." : "Use Add your club to submit the first listing."}</div>`;
+      return;
+    }
+    grid.innerHTML = list.map(c => {
+      const chips = chip(c.scoreholio, "Scoreholio", "sh") + chip(c.website, "Website") + chip(c.facebook, "Facebook") + chip(c.instagram, "Instagram") + chip(c.tiktok, "TikTok") + chip(c.youtube, "YouTube");
+      return `<article class="club">
+        <div class="club-top">${logoHtml(c.logo_path, c.name)}<div style="min-width:0"><h3>${esc(c.name)}</h3><div class="city">${esc(c.city)}, AZ</div></div></div>
+        <div class="chips">${chips || `<span class="chip none">Links not added yet</span>`}</div>
+        <div class="club-foot">
+          <button class="linkbtn" type="button" data-edit-club="${esc(c.id)}">Update listing</button>
+          <button class="linkbtn" type="button" data-club-events="${esc(c.id)}">Events →</button>
+        </div>
+      </article>`;
+    }).join("");
+  }
+
+  function renderVendors() {
+    const q = S.vq.trim().toLowerCase();
+    const list = S.vendors.filter(v => (!S.vcat || v.category === S.vcat) && (!q || [v.name, v.blurb, v.city, v.category].some(x => (x || "").toLowerCase().includes(q))));
+    const grid = $("#vendor-grid");
+    if (!S.loaded && S.status === "loading") { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Loading vendors…</b></div>`; return; }
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>${q || S.vcat ? "No vendors match" : "No vendors listed yet"}</b>${q || S.vcat ? "Try a different search or category." : "Use Add your business to submit the first listing."}</div>`;
+      return;
+    }
+    grid.innerHTML = list.map(v => {
+      const chips = chip(v.shop, "Shop", "sh") + chip(v.website, "Website") + chip(v.facebook, "Facebook") + chip(v.instagram, "Instagram") + chip(v.tiktok, "TikTok") + chip(v.youtube, "YouTube");
+      return `<article class="club">
+        <div class="club-top">${logoHtml(v.logo_path, v.name)}<div style="min-width:0">${v.category ? `<span class="vtag">${esc(v.category)}</span>` : ""}<h3>${esc(v.name)}</h3>${v.city ? `<div class="city">${esc(v.city)}, AZ</div>` : ""}</div></div>
+        ${v.blurb ? `<p class="blurb">${esc(v.blurb)}</p>` : ""}
+        <div class="chips">${chips || `<span class="chip none">Links not added yet</span>`}</div>
+        <div class="club-foot"><button class="linkbtn" type="button" data-edit-vendor="${esc(v.id)}">Update listing</button></div>
+      </article>`;
+    }).join("");
+  }
+
+  function renderClubOptions() {
+    const opts = S.clubs.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${esc(c.city)})</option>`).join("");
+    const sel = $("#ev-club"), cur = sel.value; sel.innerHTML = `<option value="">Select your club</option>` + opts; sel.value = cur;
+    const f = $("#event-club-filter"); f.innerHTML = `<option value="">All clubs</option>` + opts; f.value = S.clubFilter;
+  }
+
+  function renderEvents() {
+    const box = $("#event-list"), today = todayStr();
+    if (!S.loaded && S.status === "loading") { box.innerHTML = `<div class="empty"><b>Loading events…</b></div>`; return; }
+    let list = S.events.filter(e => (S.when === "upcoming" ? e.event_date >= today : e.event_date < today));
+    if (S.clubFilter) list = list.filter(e => e.club_id === S.clubFilter);
+    const key = e => e.event_date + (e.start_time || "");
+    list.sort((a, b) => (S.when === "upcoming" ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))));
+    if (!list.length) {
+      box.innerHTML = `<div class="empty"><b>${S.when === "upcoming" ? "No upcoming events posted yet" : "No past events"}</b>${S.when === "upcoming" ? `Club organizers can add one with <button class="linkbtn" type="button" data-open="event">Post Event Here</button>.` : "Events move here after their date."}</div>`;
+      return;
+    }
+    box.innerHTML = list.map(e => {
+      const d = parseDate(e.event_date), club = clubById(e.club_id);
+      const sh = safeHref(e.scoreholio);
+      let flyer = "";
+      if (e.flyer_path) {
+        flyer = /pdf/i.test(e.flyer_type || e.flyer_path)
+          ? `<a class="flyer-pdf" href="${esc(fileUrl(e.flyer_path))}" target="_blank" rel="noopener">View flyer<br>(PDF)</a>`
+          : `<button type="button" class="flyer" data-flyer="${esc(e.flyer_path)}" data-cap="${esc(e.title)}" aria-label="View flyer for ${esc(e.title)}" style="background:url('${esc(fileUrl(e.flyer_path))}') center/cover var(--sunk)"></button>`;
+      }
+      return `<article class="event">
+        <div class="date"><div class="m">${d ? d.toLocaleString("en-US", { month: "short" }) : ""}</div><div class="d">${d ? d.getDate() : "?"}</div><div class="w">${d ? d.toLocaleString("en-US", { weekday: "short" }) : ""}</div></div>
+        <div style="min-width:0">
+          <h3>${esc(e.title)}</h3>
+          <div class="meta"><span><b>${esc(club ? club.name : "AZ club")}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
+          ${e.details ? `<p class="details">${esc(e.details)}</p>` : ""}
+          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}</div>
+        </div>
+        <div class="flyer-col">${flyer}</div>
+      </article>`;
+    }).join("");
+  }
+
+  function renderStats() {
+    const t = todayStr();
+    $("#stat-clubs").textContent = S.loaded ? S.clubs.length : "–";
+    $("#stat-vendors").textContent = S.loaded ? S.vendors.length : "–";
+    $("#stat-events").textContent = S.loaded ? S.events.filter(e => e.event_date >= t).length : "–";
+  }
+  function render() {
+    document.querySelectorAll(".db-note").forEach(n => (n.innerHTML = statusNote()));
+    renderStats(); renderClubs(); renderVendors(); renderClubOptions(); renderEvents();
+  }
+
+  /* ---------- Loading ---------- */
+  async function load() {
+    if (!sb) { S.status = configured ? "error" : "unconfigured"; render(); return; }
+    try {
+      const [c, v, e] = await Promise.all([
+        sb.from("clubs").select("id,name,city,logo_path,website,facebook,instagram,tiktok,youtube,scoreholio").eq("status", "approved").order("name"),
+        sb.from("vendors").select("id,name,category,city,blurb,logo_path,website,shop,facebook,instagram,tiktok,youtube").eq("status", "approved").order("name"),
+        sb.from("events").select("id,club_id,title,event_date,start_time,format,location,scoreholio,details,flyer_path,flyer_type").eq("status", "approved").order("event_date")
+      ]);
+      if (c.error || v.error || e.error) throw c.error || v.error || e.error;
+      S.clubs = c.data; S.vendors = v.data; S.events = e.data; S.loaded = true; S.status = "ready";
+    } catch (x) { console.error(x); S.status = "error"; }
+    render();
+  }
+
+  /* ---------- Dialogs and clicks ---------- */
+  const openDlg = id => { const d = document.getElementById(id); if (!d.open) d.showModal(); };
+  const closeDlg = d => d && d.open && d.close();
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-open],[data-close],[data-edit-club],[data-edit-vendor],[data-club-events],[data-flyer],[data-when]");
+    if (!t) return;
+    if (t.dataset.open === "club") openClubForm(null);
+    else if (t.dataset.open === "event") openEventForm();
+    else if (t.dataset.open === "vendor") openVendorForm(null);
+    else if (t.hasAttribute("data-close")) closeDlg(t.closest("dialog"));
+    else if (t.dataset.editClub) openClubForm(t.dataset.editClub);
+    else if (t.dataset.editVendor) openVendorForm(t.dataset.editVendor);
+    else if (t.dataset.clubEvents) { S.clubFilter = t.dataset.clubEvents; S.when = "upcoming"; syncSeg(); location.hash = "events"; renderEvents(); renderClubOptions(); }
+    else if (t.dataset.flyer) { $("#lb-img").src = fileUrl(t.dataset.flyer); $("#lb-img").alt = "Flyer for " + t.dataset.cap; $("#lb-cap").textContent = t.dataset.cap; openDlg("lightbox"); }
+    else if (t.dataset.when) { S.when = t.dataset.when; syncSeg(); renderEvents(); }
+  });
+  function syncSeg() { document.querySelectorAll("[data-when]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.when === S.when))); }
+  $("#club-search").addEventListener("input", e => { S.q = e.target.value; renderClubs(); });
+  $("#vendor-search").addEventListener("input", e => { S.vq = e.target.value; renderVendors(); });
+  $("#vendor-cat-filter").addEventListener("change", e => { S.vcat = e.target.value; renderVendors(); });
+  $("#event-club-filter").addEventListener("change", e => { S.clubFilter = e.target.value; renderEvents(); });
+  $("#ev-add-club").addEventListener("click", () => { closeDlg($("#dlg-event")); openClubForm(null); });
+  document.addEventListener("error", e => {
+    const img = e.target;
+    if (img && img.tagName === "IMG" && img.classList.contains("club-logo") && img.dataset.i) {
+      const s = document.createElement("span"); s.className = "club-logo"; s.textContent = img.dataset.i; img.replaceWith(s);
+    }
+  }, true);
+
+  /* ---------- Shared submit helpers ---------- */
+  const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  function readLinks(prefix, keys, err) {
+    const out = {};
+    for (const [k, label] of keys) {
+      const u = normUrl($(`#${prefix}-${k}`).value);
+      if (u === null) { err.textContent = `The ${label} link isn't a valid web address.`; return null; }
+      out[k] = u || null;
+    }
+    return out;
+  }
+  function readContact(prefix, err) {
+    const name = $(`#${prefix}-cname`).value.trim(), email = $(`#${prefix}-cemail`).value.trim();
+    const phoneEl = $(`#${prefix}-cphone`), phone = phoneEl ? phoneEl.value.trim() : "";
+    if (!name || !emailOk(email)) { err.textContent = "Add your name and a valid email so AZCL can reach you."; return null; }
+    return { name, email, phone: phone || null };
+  }
+  async function saveContact(type, id, c) {
+    const { error } = await sb.from("submission_contacts").insert({ item_type: type, item_id: id, ...c });
+    if (error) console.warn("contact not saved", error);
+  }
+  const friendly = x => (x && x.message) ? x.message : "Something went wrong. Try again.";
+  function notReady(err) { if (!sb) { err.textContent = "Submissions aren't open yet. Check back soon."; return true; } return false; }
+
+  /* ---------- Club form ---------- */
+  const CLUB_LINKS = [["scoreholio", "Scoreholio"], ["website", "website"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"]];
+  function openClubForm(id) {
+    const c = id ? clubById(id) : null;
+    $("#club-form").reset(); $("#club-err").textContent = "";
+    $("#club-id").value = c ? c.id : "";
+    $("#club-title").textContent = c ? "Update club listing" : "Add your club";
+    $("#club-name").value = c ? c.name : ""; $("#club-city").value = c ? c.city : "";
+    CLUB_LINKS.forEach(([k]) => ($(`#club-${k}`).value = c ? (c[k] || "") : ""));
+    const cur = $("#club-logo-current");
+    if (c && c.logo_path) { cur.hidden = false; cur.innerHTML = `<img src="${esc(fileUrl(c.logo_path))}" alt="">Current logo. Choose a file to replace it.`; } else { cur.hidden = true; cur.innerHTML = ""; }
+    openDlg("dlg-club");
+  }
+  $("#club-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("#club-err"); err.textContent = "";
+    if (notReady(err)) return;
+    if ($("#club-hp").value) { closeDlg($("#dlg-club")); return; }
+    const name = $("#club-name").value.trim(), city = $("#club-city").value.trim();
+    if (!name || !city) { err.textContent = "Add your club name and city."; return; }
+    const links = readLinks("club", CLUB_LINKS, err); if (!links) return;
+    const contact = readContact("club", err); if (!contact) return;
+    const replaces = $("#club-id").value || null, orig = replaces ? clubById(replaces) : null;
+    const btn = $("#club-save"); btn.disabled = true; btn.textContent = "Submitting…";
+    try {
+      const file = $("#club-logo").files[0];
+      const logo_path = file ? await upload("clubs", file) : (orig ? orig.logo_path : null);
+      const id = uuid();
+      const { error } = await sb.from("clubs").insert({ id, status: "pending", replaces, name, city, logo_path, ...links });
+      if (error) throw error;
+      await saveContact("club", id, contact);
+      closeDlg($("#dlg-club"));
+      toast(replaces ? "Thanks! Your update will show once AZCL approves it." : "Thanks! Your club will appear once AZCL approves it.");
+    } catch (x) { err.textContent = "Couldn't submit: " + friendly(x); }
+    finally { btn.disabled = false; btn.textContent = "Submit for review"; }
+  });
+
+  /* ---------- Vendor form ---------- */
+  const VENDOR_LINKS = [["website", "website"], ["shop", "shop"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"]];
+  function openVendorForm(id) {
+    const v = id ? S.vendors.find(x => x.id === id) : null;
+    $("#vendor-form").reset(); $("#vendor-err").textContent = "";
+    $("#vendor-id").value = v ? v.id : "";
+    $("#vendor-title").textContent = v ? "Update vendor listing" : "Add your business";
+    ["name", "category", "city", "blurb"].forEach(k => ($(`#vendor-${k}`).value = v ? (v[k] || "") : ""));
+    VENDOR_LINKS.forEach(([k]) => ($(`#vendor-${k}`).value = v ? (v[k] || "") : ""));
+    const cur = $("#vendor-logo-current");
+    if (v && v.logo_path) { cur.hidden = false; cur.innerHTML = `<img src="${esc(fileUrl(v.logo_path))}" alt="">Current logo. Choose a file to replace it.`; } else { cur.hidden = true; cur.innerHTML = ""; }
+    openDlg("dlg-vendor");
+  }
+  $("#vendor-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("#vendor-err"); err.textContent = "";
+    if (notReady(err)) return;
+    if ($("#vendor-hp").value) { closeDlg($("#dlg-vendor")); return; }
+    const val = k => $(`#vendor-${k}`).value.trim();
+    if (!val("name") || !val("category")) { err.textContent = "Add your business name and category."; return; }
+    const links = readLinks("vendor", VENDOR_LINKS, err); if (!links) return;
+    const contact = readContact("vendor", err); if (!contact) return;
+    const replaces = $("#vendor-id").value || null, orig = replaces ? S.vendors.find(x => x.id === replaces) : null;
+    const btn = $("#vendor-save"); btn.disabled = true; btn.textContent = "Submitting…";
+    try {
+      const file = $("#vendor-logo").files[0];
+      const logo_path = file ? await upload("vendors", file) : (orig ? orig.logo_path : null);
+      const id = uuid();
+      const { error } = await sb.from("vendors").insert({ id, status: "pending", replaces, name: val("name"), category: val("category"), city: val("city") || null, blurb: val("blurb") || null, logo_path, ...links });
+      if (error) throw error;
+      await saveContact("vendor", id, contact);
+      closeDlg($("#dlg-vendor"));
+      toast(replaces ? "Thanks! Your update will show once AZCL approves it." : "Thanks! Your listing will appear once AZCL approves it.");
+    } catch (x) { err.textContent = "Couldn't submit: " + friendly(x); }
+    finally { btn.disabled = false; btn.textContent = "Submit for review"; }
+  });
+
+  /* ---------- Event form ---------- */
+  function openEventForm() {
+    $("#event-form").reset(); $("#ev-err").textContent = "";
+    if (S.clubFilter) { $("#ev-club").value = S.clubFilter; const c = clubById(S.clubFilter); if (c) $("#ev-location").value = c.city + ", AZ"; }
+    openDlg("dlg-event");
+  }
+  $("#ev-club").addEventListener("change", e => {
+    const c = clubById(e.target.value), loc = $("#ev-location");
+    if (c && !loc.value) loc.value = c.city + ", AZ";
+  });
+  $("#event-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("#ev-err"); err.textContent = "";
+    if (notReady(err)) return;
+    if ($("#ev-hp").value) { closeDlg($("#dlg-event")); return; }
+    const v = k => $(`#ev-${k}`).value.trim();
+    const missing = [["club", "hosting club"], ["name", "event name"], ["date", "date"], ["location", "location"], ["scoreholio", "Scoreholio link"]].filter(([k]) => !v(k)).map(([, l]) => l);
+    if (missing.length) { err.textContent = "Add the " + missing.join(", ") + "."; return; }
+    const sh = normUrl(v("scoreholio"));
+    if (!sh) { err.textContent = "The Scoreholio link isn't a valid web address."; return; }
+    const contact = readContact("ev", err); if (!contact) return;
+    const btn = $("#ev-save"); btn.disabled = true; btn.textContent = "Submitting…";
+    try {
+      const file = $("#ev-flyer").files[0];
+      const flyer_path = file ? await upload("events", file, true) : null;
+      const id = uuid();
+      const { error } = await sb.from("events").insert({
+        id, status: "pending", club_id: v("club"), title: v("name"), event_date: v("date"), start_time: v("time") || null,
+        format: v("format") || null, location: v("location"), scoreholio: sh, details: v("details") || null,
+        flyer_path, flyer_type: file ? file.type : null
+      });
+      if (error) throw error;
+      await saveContact("event", id, contact);
+      closeDlg($("#dlg-event"));
+      toast("Thanks! Your event will appear once AZCL approves it.");
+    } catch (x) { err.textContent = "Couldn't submit: " + friendly(x); }
+    finally { btn.disabled = false; btn.textContent = "Submit event"; }
+  });
+
+  route(); render(); load();
+})();

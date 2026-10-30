@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arizona Cornhole League</title>
+<meta name="description" content="One home for Arizona cornhole: find a club, see tournaments across the state, and find Arizona cornhole vendors.">
+<meta property="og:title" content="Arizona Cornhole League">
+<meta property="og:description" content="AZ Programs. AZ Points. AZ Players. All in one state.">
+<meta property="og:image" content="https://azcornholeleague.com/assets/logo.png">
+<link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#home" aria-label="Arizona Cornhole League home">
+      <img class="brand-mark" src="assets/mark.png" alt="" width="54" height="44">
+      <span><b>AZCL</b><small>Arizona Cornhole League</small></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#home" data-nav="home">Home</a>
+      <a href="#clubs" data-nav="clubs">Clubs</a>
+      <a href="#vendors" data-nav="vendors">Vendors</a>
+      <a href="#events" data-nav="events">AZ Events</a>
+    </nav>
+    <button class="btn btn-primary btn-sm" type="button" data-open="event">Post Event Here</button>
+  </div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section data-view="home">
+    <div class="hero">
+      <div class="wrap">
+        <img class="logo-big" src="assets/logo.png" alt="Arizona Cornhole League logo: AZ programs. AZ points. AZ players. All in one state." width="640" height="597">
+        <div>
+          <div class="eyebrow" style="color:var(--gold)">Arizona Cornhole League</div>
+          <h1>One home for Arizona cornhole</h1>
+          <p>Find a club near you, see every tournament across the state, and post your club's events with a Scoreholio link in one place.</p>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="season">
+        <div class="season-card">
+          <span class="season-tag">Season 1</span>
+          <div>
+            <h2>Season details coming soon</h2>
+            <p>The AZCL points schedule, statewide points standings and the Arizona State Championships are being finalized with club organizers. Dates and rules will be posted here.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sections">
+        <a class="door" href="#clubs">
+          <span class="eyebrow">Find a club</span>
+          <h3>AZ Cornhole Club Directory</h3>
+          <div class="stat"><span id="stat-clubs">–</span><small>clubs listed</small></div>
+          <p>Every club in the state with its logo, website, social pages and Scoreholio page. Clubs can add and update their own listing.</p>
+          <span class="go">Browse clubs →</span>
+        </a>
+        <a class="door" href="#events">
+          <span class="eyebrow">Tournament calendar</span>
+          <h3>AZ Events</h3>
+          <div class="stat"><span id="stat-events">–</span><small>upcoming events</small></div>
+          <p>Tournaments and weekly play submitted by Arizona clubs, each linked straight to its Scoreholio page for sign-ups and brackets.</p>
+          <span class="go">See events →</span>
+        </a>
+        <a class="door" href="#vendors">
+          <span class="eyebrow">Gear and services</span>
+          <h3>AZ Cornhole Vendor Directory</h3>
+          <div class="stat"><span id="stat-vendors">–</span><small>vendors listed</small></div>
+          <p>Arizona makers of bags, boards and custom designs, plus event services. Vendors can add and update their own listing.</p>
+          <span class="go">Browse vendors →</span>
+        </a>
+      </div>
+
+      <div class="soon">
+        <h3>Coming later</h3>
+        <div class="soon-row">
+          <div class="soon-item"><b>AZ Points Standings</b>Statewide rankings by division from AZCL points events.</div>
+          <div class="soon-item"><b>Arizona Player Passport</b>Badges for events played and new clubs visited.</div>
+          <div class="soon-item"><b>Player Profiles</b>Results, points and club visits for every player.</div>
+        </div>
+      </div>
+      <div style="height:56px"></div>
+    </div>
+  </section>
+
+  <!-- CLUBS -->
+  <section data-view="clubs" hidden>
+    <div class="wrap page">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Find a club</span>
+          <h1>AZ Cornhole Club Directory</h1>
+          <p>Clubs from Kingman to Sahuarita. Don't see yours, or need to update your logo and links? Add or update your listing.</p>
+        </div>
+        <button class="btn btn-primary" type="button" data-open="club">Add your club</button>
+      </div>
+      <div class="toolbar">
+        <input id="club-search" type="search" placeholder="Search by club or city" aria-label="Search clubs">
+      </div>
+      <div class="db-note"></div>
+      <div class="clubs" id="club-grid"></div>
+    </div>
+  </section>
+
+  <!-- VENDORS -->
+  <section data-view="vendors" hidden>
+    <div class="wrap page">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Gear and services</span>
+          <h1>AZ Cornhole Vendor Directory</h1>
+          <p>Arizona businesses making bags, boards and custom designs, and running events. Are you a vendor? Add or update your listing.</p>
+        </div>
+        <button class="btn btn-primary" type="button" data-open="vendor">Add your business</button>
+      </div>
+      <div class="toolbar">
+        <input id="vendor-search" type="search" placeholder="Search by name or what they offer" aria-label="Search vendors">
+        <select id="vendor-cat-filter" aria-label="Filter by category"><option value="">All categories</option></select>
+      </div>
+      <div class="db-note"></div>
+      <div class="clubs" id="vendor-grid"></div>
+    </div>
+  </section>
+
+  <!-- EVENTS -->
+  <section data-view="events" hidden>
+    <div class="wrap page">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Tournament calendar</span>
+          <h1>AZ Events</h1>
+          <p>Events posted by Arizona clubs. Tap Scoreholio to register, check in or follow the bracket.</p>
+        </div>
+        <button class="btn btn-primary" type="button" data-open="event">Post Event Here</button>
+      </div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Show">
+          <button type="button" data-when="upcoming" aria-pressed="true">Upcoming</button>
+          <button type="button" data-when="past" aria-pressed="false">Past</button>
+        </div>
+        <select id="event-club-filter" aria-label="Filter by club"><option value="">All clubs</option></select>
+      </div>
+      <div class="db-note"></div>
+      <div class="events" id="event-list"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© <span id="year">2026</span> Arizona Cornhole League · <a href="admin.html">Admin</a></span>
+    <span>Regulation play: 2 × 4 ft boards, 27 ft front to front</span>
+  </div>
+</footer>
+
+<!-- Club dialog -->
+<dialog id="dlg-club" aria-labelledby="club-title">
+  <div class="dlg-head">
+    <div><h2 id="club-title">Add your club</h2><p>Listings appear in the AZ Cornhole Club Directory after AZCL reviews them.</p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <form class="f" id="club-form" novalidate>
+    <input type="hidden" id="club-id">
+    <div class="row2">
+      <div class="fld"><label for="club-name">Club name <span class="req">*</span></label><input id="club-name" required maxlength="80"></div>
+      <div class="fld"><label for="club-city">City <span class="req">*</span></label><input id="club-city" required maxlength="60" placeholder="e.g. Mesa"></div>
+    </div>
+    <div class="fld">
+      <label for="club-logo">Club logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
+      <div class="preview-logo" id="club-logo-current" hidden></div>
+      <input id="club-logo" type="file" accept="image/png,image/jpeg,image/webp">
+    </div>
+    <div class="fld"><label for="club-scoreholio">Scoreholio page</label><input id="club-scoreholio" type="url" placeholder="https://scoreholio.com/..."></div>
+    <div class="fld"><label for="club-website">Website</label><input id="club-website" type="url" placeholder="https://"></div>
+    <fieldset>
+      <legend>Social channels</legend>
+      <div class="row2">
+        <div class="fld"><label for="club-facebook">Facebook</label><input id="club-facebook" type="url" placeholder="https://facebook.com/..."></div>
+        <div class="fld"><label for="club-instagram">Instagram</label><input id="club-instagram" type="url" placeholder="https://instagram.com/..."></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label for="club-tiktok">TikTok</label><input id="club-tiktok" type="url" placeholder="https://tiktok.com/@..."></div>
+        <div class="fld"><label for="club-youtube">YouTube</label><input id="club-youtube" type="url" placeholder="https://youtube.com/@..."></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Your contact info (private)</legend>
+      <div class="row2">
+        <div class="fld"><label for="club-cname">Your name <span class="req">*</span></label><input id="club-cname" required maxlength="80" autocomplete="name"></div>
+        <div class="fld"><label for="club-cemail">Email <span class="req">*</span></label><input id="club-cemail" type="email" required maxlength="120" autocomplete="email"></div>
+      </div>
+      <div class="fld"><label for="club-cphone">Phone</label><input id="club-cphone" type="tel" maxlength="30" autocomplete="tel"></div>
+    </fieldset>
+    <div class="hp" aria-hidden="true"><label for="club-hp">Leave blank</label><input id="club-hp" tabindex="-1" autocomplete="off"></div>
+    <p class="review-note">Only AZCL sees your contact info. We use it if we have a question about your listing.</p>
+    <div class="form-foot">
+      <span class="err" id="club-err" role="alert"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" id="club-save">Submit for review</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Vendor dialog -->
+<dialog id="dlg-vendor" aria-labelledby="vendor-title">
+  <div class="dlg-head">
+    <div><h2 id="vendor-title">Add your business</h2><p>Listings appear in the AZ Cornhole Vendor Directory after AZCL reviews them.</p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <form class="f" id="vendor-form" novalidate>
+    <input type="hidden" id="vendor-id">
+    <div class="fld"><label for="vendor-name">Business name <span class="req">*</span></label><input id="vendor-name" required maxlength="80"></div>
+    <div class="row2">
+      <div class="fld"><label for="vendor-category">Category <span class="req">*</span></label>
+        <select id="vendor-category" required><option value="">Choose one</option></select>
+      </div>
+      <div class="fld"><label for="vendor-city">City</label><input id="vendor-city" maxlength="60" placeholder="e.g. Phoenix"></div>
+    </div>
+    <div class="fld"><label for="vendor-blurb">What you offer <span class="hint">One or two lines</span></label><input id="vendor-blurb" maxlength="140" placeholder="e.g. Premier cornhole bags, custom colors and logos"></div>
+    <div class="fld">
+      <label for="vendor-logo">Logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
+      <div class="preview-logo" id="vendor-logo-current" hidden></div>
+      <input id="vendor-logo" type="file" accept="image/png,image/jpeg,image/webp">
+    </div>
+    <div class="row2">
+      <div class="fld"><label for="vendor-website">Website</label><input id="vendor-website" type="url" placeholder="https://"></div>
+      <div class="fld"><label for="vendor-shop">Online shop</label><input id="vendor-shop" type="url" placeholder="Etsy, Shopify…"></div>
+    </div>
+    <fieldset>
+      <legend>Social channels</legend>
+      <div class="row2">
+        <div class="fld"><label for="vendor-facebook">Facebook</label><input id="vendor-facebook" type="url" placeholder="https://facebook.com/..."></div>
+        <div class="fld"><label for="vendor-instagram">Instagram</label><input id="vendor-instagram" type="url" placeholder="https://instagram.com/..."></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label for="vendor-tiktok">TikTok</label><input id="vendor-tiktok" type="url" placeholder="https://tiktok.com/@..."></div>
+        <div class="fld"><label for="vendor-youtube">YouTube</label><input id="vendor-youtube" type="url" placeholder="https://youtube.com/@..."></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Your contact info (private)</legend>
+      <div class="row2">
+        <div class="fld"><label for="vendor-cname">Your name <span class="req">*</span></label><input id="vendor-cname" required maxlength="80" autocomplete="name"></div>
+        <div class="fld"><label for="vendor-cemail">Email <span class="req">*</span></label><input id="vendor-cemail" type="email" required maxlength="120" autocomplete="email"></div>
+      </div>
+      <div class="fld"><label for="vendor-cphone">Phone</label><input id="vendor-cphone" type="tel" maxlength="30" autocomplete="tel"></div>
+    </fieldset>
+    <div class="hp" aria-hidden="true"><label for="vendor-hp">Leave blank</label><input id="vendor-hp" tabindex="-1" autocomplete="off"></div>
+    <p class="review-note">Only AZCL sees your contact info. We use it if we have a question about your listing.</p>
+    <div class="form-foot">
+      <span class="err" id="vendor-err" role="alert"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" id="vendor-save">Submit for review</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Event dialog -->
+<dialog id="dlg-event" aria-labelledby="event-title">
+  <div class="dlg-head">
+    <div><h2 id="event-title">Post an event</h2><p>Any event works: weekly blind draws, tournaments, charity events. Events appear after AZCL reviews them.</p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <form class="f" id="event-form" novalidate>
+    <div class="fld">
+      <label for="ev-club">Hosting club <span class="req">*</span></label>
+      <select id="ev-club" required><option value="">Select your club</option></select>
+      <span class="hint">Not listed? <button type="button" class="linkbtn" id="ev-add-club">Add your club first</button></span>
+    </div>
+    <div class="fld"><label for="ev-name">Event name <span class="req">*</span></label><input id="ev-name" required maxlength="100" placeholder="e.g. Saturday Night Singles"></div>
+    <div class="row2">
+      <div class="fld"><label for="ev-date">Date <span class="req">*</span></label><input id="ev-date" type="date" required></div>
+      <div class="fld"><label for="ev-time">Start time</label><input id="ev-time" type="time"></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label for="ev-format">Format</label><select id="ev-format"><option value="">Choose a format</option></select></div>
+      <div class="fld"><label for="ev-location">Location <span class="req">*</span></label><input id="ev-location" required maxlength="120" placeholder="Venue, city"></div>
+    </div>
+    <div class="fld"><label for="ev-scoreholio">Scoreholio event link <span class="req">*</span></label><input id="ev-scoreholio" type="url" required placeholder="https://share.scoreholio.com/..."></div>
+    <div class="fld"><label for="ev-details">Details</label><textarea id="ev-details" maxlength="1500" placeholder="Entry fee, check-in time, payouts, divisions, food and drink…"></textarea></div>
+    <div class="fld">
+      <label for="ev-flyer">Event flyer <span class="hint">Image or PDF, up to 5 MB</span></label>
+      <input id="ev-flyer" type="file" accept="image/png,image/jpeg,image/webp,application/pdf">
+    </div>
+    <fieldset>
+      <legend>Your contact info (private)</legend>
+      <div class="row2">
+        <div class="fld"><label for="ev-cname">Your name <span class="req">*</span></label><input id="ev-cname" required maxlength="80" autocomplete="name"></div>
+        <div class="fld"><label for="ev-cemail">Email <span class="req">*</span></label><input id="ev-cemail" type="email" required maxlength="120" autocomplete="email"></div>
+      </div>
+    </fieldset>
+    <div class="hp" aria-hidden="true"><label for="ev-hp">Leave blank</label><input id="ev-hp" tabindex="-1" autocomplete="off"></div>
+    <div class="form-foot">
+      <span class="err" id="ev-err" role="alert"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" id="ev-save">Submit event</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="lightbox" aria-label="Event flyer">
+  <img id="lb-img" alt="">
+  <div class="lb-bar"><span id="lb-cap" style="font-weight:700"></span><button class="btn btn-ghost btn-sm" type="button" data-close>Close</button></div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
