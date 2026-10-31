@@ -37,6 +37,8 @@
     A.clubs = c.data; A.vendors = v.data; A.events = e.data;
     const o = await sb.from("scoreholio_organizers").select("*").order("name");
     A.orgsReady = !o.error; A.orgs = o.data || [];
+    const mg = await sb.from("club_managers").select("club_id,email").order("email");
+    A.managersReady = !mg.error; A.managers = mg.data || [];
     const pendingIds = [...A.clubs, ...A.vendors, ...A.events].filter(x => x.status === "pending").map(x => x.id);
     A.contacts = {};
     if (pendingIds.length) {
@@ -118,7 +120,14 @@
     const warn = type === "club" ? " This also removes the club's events." : "";
     return `<div class="live-row">
       ${thumb(item.logo_path, item.name).replace('class="thumb"', 'class="thumb" style="width:44px;height:44px;font-size:16px"')}
-      <div><b>${esc(item.name)}</b><span>${esc([item.category, item.city].filter(Boolean).join(" · "))}</span>${confirm ? `<span style="color:var(--danger)">Remove ${esc(item.name)}?${warn}</span>` : ""}</div>
+      <div><b>${esc(item.name)}</b><span>${esc([item.category, item.city].filter(Boolean).join(" · "))}</span>${confirm ? `<span style="color:var(--danger)">Remove ${esc(item.name)}?${warn}</span>` : ""}
+        ${type === "club" && A.managersReady ? `<div class="mgrs">
+          ${A.managers.filter(m => m.club_id === item.id).map(m => `<span class="mgr">${esc(m.email)} <button class="linkbtn" data-act="mgr-remove" data-id="${item.id}" data-email="${esc(m.email)}" aria-label="Remove ${esc(m.email)} as manager">×</button></span>`).join("")}
+          <input type="email" id="mgr-${item.id}" placeholder="Add club login email" aria-label="Club login email for ${esc(item.name)}" class="mgr-input">
+          <button class="btn btn-ghost btn-sm" data-act="mgr-add" data-id="${item.id}">Add</button>
+          <a class="linkbtn" href="manage.html?club=${item.id}">Edit page</a>
+        </div>` : ""}
+      </div>
       ${confirm
         ? `<button class="btn btn-sm btn-danger" data-act="remove-yes" data-type="${type}" data-id="${item.id}">Remove</button><button class="linkbtn" data-act="cancel">Keep</button>`
         : `<button class="btn btn-ghost btn-sm" data-act="remove" data-type="${type}" data-id="${item.id}">Remove</button>`}
@@ -147,7 +156,10 @@
     } else {
       const type = A.tab === "live-clubs" ? "club" : "vendor";
       const live = (type === "club" ? A.clubs : A.vendors).filter(x => x.status === "approved");
-      body.innerHTML = `<p style="color:var(--muted);margin-top:0">To change a listing, use "Update listing" on the public site, then approve it here.</p>` + live.map(x => liveRow(type, x)).join("");
+      const tip = type === "club"
+        ? `To change a club's name or city, use "Update listing" on the public site, then approve it here. To let a club edit its own page, add the email they use on the Club login page. You can also edit any club's page yourself.`
+        : `To change a listing, use "Update listing" on the public site, then approve it here.`;
+      body.innerHTML = `<p style="color:var(--muted);margin-top:0;max-width:75ch">${tip}</p>` + live.map(x => liveRow(type, x)).join("");
     }
   }
 
@@ -229,6 +241,13 @@
         await sb.from("scoreholio_organizers").update({ ignored: false }).eq("id", id);
         toast("Linked. Their tournaments arrive at the next hourly import.");
       }
+      if (act === "mgr-add") {
+        const email = (document.getElementById("mgr-" + id).value || "").trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("enter a valid email");
+        const { error } = await sb.from("club_managers").insert({ club_id: id, email }); if (error) throw error;
+        toast(`${email} can now edit this club's page after signing in at Club login.`);
+      }
+      if (act === "mgr-remove") { const { error } = await sb.from("club_managers").delete().eq("club_id", id).eq("email", b.dataset.email); if (error) throw error; toast("Removed."); }
       if (act === "unlink") { const { error } = await sb.from("clubs").update({ scoreholio_organizer_id: null }).eq("id", id); if (error) throw error; toast("Unlinked. Their imported events are removed at the next import."); }
       if (act === "ignore" || act === "unignore") { const { error } = await sb.from("scoreholio_organizers").update({ ignored: act === "ignore" }).eq("id", id); if (error) throw error; toast(act === "ignore" ? "Ignored." : "Moved back to Needs a club."); }
       if (act === "reject-yes") { await removeRow(type, id); toast("Rejected and removed."); }

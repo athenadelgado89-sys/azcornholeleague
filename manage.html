@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Club Login · Arizona Cornhole League</title>
+<link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css?v=202610301935">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="Back to the AZCL website">
+      <img class="brand-mark" src="assets/mark.png" alt="" width="54" height="44">
+      <span><b>AZCL</b><small>Club login</small></span>
+    </a>
+    <a class="btn btn-ghost btn-sm" href="./#clubs" style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">Club directory</a>
+    <button class="btn btn-ghost btn-sm" type="button" id="signout" hidden style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">Sign out</button>
+  </div>
+</header>
+
+<main class="wrap page">
+  <!-- Signed out -->
+  <section id="auth" hidden>
+    <div class="admin-login">
+      <h1 id="auth-title">Club login</h1>
+      <p style="color:var(--muted);margin:0" id="auth-sub">For club organizers. Sign in to edit your club page: About Us, photos, Player of the Week and sponsors.</p>
+      <div class="tabs" role="group" aria-label="Account" style="margin:16px 0 0">
+        <button type="button" data-mode="signin" aria-pressed="true">Sign in</button>
+        <button type="button" data-mode="signup" aria-pressed="false">Create account</button>
+        <button type="button" data-mode="reset" aria-pressed="false">Forgot password</button>
+      </div>
+      <form id="auth-form" novalidate>
+        <div class="fld"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="username" required></div>
+        <div class="fld" id="pass-wrap"><label for="auth-pass">Password</label><input id="auth-pass" type="password" autocomplete="current-password" minlength="8" required><span class="hint" id="pass-hint" hidden>At least 8 characters.</span></div>
+        <div class="form-foot"><span class="err" id="auth-err" role="alert"></span><button class="btn btn-primary" type="submit" id="auth-btn">Sign in</button></div>
+      </form>
+      <p class="review-note" id="auth-msg" hidden></p>
+    </div>
+  </section>
+
+  <!-- Set a new password after a reset link -->
+  <section id="newpass" hidden>
+    <div class="admin-login">
+      <h1>New password</h1>
+      <form id="newpass-form" novalidate>
+        <div class="fld"><label for="np-pass">New password</label><input id="np-pass" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="form-foot"><span class="err" id="np-err" role="alert"></span><button class="btn btn-primary" type="submit">Save password</button></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Signed in, no club yet -->
+  <section id="noclub" hidden>
+    <div class="admin-login" style="max-width:560px">
+      <h1>Almost there</h1>
+      <p>You're signed in as <b id="noclub-email"></b>, but this email isn't connected to a club yet.</p>
+      <p style="color:var(--muted)">Ask AZCL to connect this email to your club. Once they do, refresh this page to start editing.</p>
+    </div>
+  </section>
+
+  <!-- Editor -->
+  <section id="editor" hidden>
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Club page editor</span>
+        <h1 id="ed-name">Your club</h1>
+        <p>Changes go live on your club page as soon as you save.</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="ed-club" aria-label="Choose club" hidden style="padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface)"></select>
+        <a class="btn btn-ghost" id="ed-view" href="./#clubs">View club page</a>
+      </div>
+    </div>
+
+    <form id="page-form" class="ed-form" novalidate>
+      <div class="ed-card">
+        <h2>About your club</h2>
+        <div class="fld"><label for="ed-about">About us <span class="hint">Who you are, where and when you play, who's welcome</span></label><textarea id="ed-about" maxlength="3000" rows="7"></textarea></div>
+        <fieldset>
+          <legend>Events we run</legend>
+          <div class="checks" id="ed-types"></div>
+        </fieldset>
+      </div>
+
+      <div class="ed-card">
+        <h2>Book Us button</h2>
+        <label class="check"><input type="checkbox" id="ed-book"> Show a <b>Book us</b> button on our club page</label>
+        <div class="fld" id="ed-book-email-wrap"><label for="ed-book-email">Booking email <span class="hint">This email will be shown publicly on your club page</span></label><input id="ed-book-email" type="email" maxlength="120" placeholder="bookings@yourclub.com"></div>
+      </div>
+
+      <div class="ed-card">
+        <h2>Player of the week</h2>
+        <div class="row2">
+          <div class="fld"><label for="ed-potw-name">Player name</label><input id="ed-potw-name" maxlength="80"></div>
+          <div class="fld"><label for="ed-potw-photo">Photo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label><input id="ed-potw-photo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+        </div>
+        <div class="preview-logo" id="ed-potw-current" hidden></div>
+        <div class="fld"><label for="ed-potw-blurb">Why they earned it</label><textarea id="ed-potw-blurb" maxlength="400" rows="3"></textarea></div>
+        <button type="button" class="linkbtn" id="ed-potw-clear">Clear player of the week</button>
+      </div>
+
+      <div class="ed-card">
+        <h2>Logo and links</h2>
+        <p class="muted" style="margin-top:0">To change your club's name or city, use "Update listing" in the club directory. AZCL reviews those changes.</p>
+        <div class="fld"><label for="ed-logo">Club logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label><div class="preview-logo" id="ed-logo-current" hidden></div><input id="ed-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+        <div class="row2">
+          <div class="fld"><label for="ed-scoreholio">Scoreholio page</label><input id="ed-scoreholio" type="url"></div>
+          <div class="fld"><label for="ed-website">Website</label><input id="ed-website" type="url"></div>
+        </div>
+        <div class="row2">
+          <div class="fld"><label for="ed-facebook">Facebook</label><input id="ed-facebook" type="url"></div>
+          <div class="fld"><label for="ed-instagram">Instagram</label><input id="ed-instagram" type="url"></div>
+        </div>
+        <div class="row2">
+          <div class="fld"><label for="ed-tiktok">TikTok</label><input id="ed-tiktok" type="url"></div>
+          <div class="fld"><label for="ed-youtube">YouTube</label><input id="ed-youtube" type="url"></div>
+        </div>
+      </div>
+
+      <div class="ed-save">
+        <span class="err" id="ed-err" role="alert"></span>
+        <button class="btn btn-primary" type="submit" id="ed-save">Save club page</button>
+      </div>
+    </form>
+
+    <div class="ed-card">
+      <h2>Photos</h2>
+      <p class="muted" style="margin-top:0">Add photos from your events, up to 24. Each must be 5 MB or smaller.</p>
+      <div class="row2">
+        <div class="fld"><label for="ph-files">Choose photos</label><input id="ph-files" type="file" accept="image/png,image/jpeg,image/webp" multiple></div>
+        <div class="fld"><label for="ph-caption">Caption <span class="hint">Optional, used for all photos in this upload</span></label><input id="ph-caption" maxlength="140"></div>
+      </div>
+      <div class="form-foot"><span class="err" id="ph-err" role="alert"></span><button class="btn btn-primary btn-sm" type="button" id="ph-add">Upload photos</button></div>
+      <div class="ed-photos" id="ph-list"></div>
+    </div>
+
+    <div class="ed-card">
+      <h2>Club sponsors</h2>
+      <div class="row2">
+        <div class="fld"><label for="sp-name">Sponsor name</label><input id="sp-name" maxlength="80"></div>
+        <div class="fld"><label for="sp-url">Sponsor website</label><input id="sp-url" type="url" placeholder="https://"></div>
+      </div>
+      <div class="fld"><label for="sp-logo">Sponsor logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label><input id="sp-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+      <div class="form-foot"><span class="err" id="sp-err" role="alert"></span><button class="btn btn-primary btn-sm" type="button" id="sp-add">Add sponsor</button></div>
+      <div id="sp-list"></div>
+    </div>
+  </section>
+
+  <div id="manage-note"></div>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
+<script src="config.js?v=202610301935"></script>
+<script src="common.js?v=202610301935"></script>
+<script src="manage.js?v=202610301935"></script>
+</body>
+</html>

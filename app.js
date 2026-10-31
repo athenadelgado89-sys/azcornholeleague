@@ -15,10 +15,15 @@
   /* ---------- Routing ---------- */
   const VIEWS = ["home", "clubs", "vendors", "events"];
   function route() {
-    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    const h = location.hash.slice(1);
+    const clubMatch = h.match(/^club-([0-9a-f-]{36})$/i);
+    const v = clubMatch ? "club" : VIEWS.includes(h) ? h : "home";
+    S.pageClub = clubMatch ? clubMatch[1] : null;
     document.querySelectorAll("[data-view]").forEach(s => (s.hidden = s.dataset.view !== v));
-    document.querySelectorAll("[data-nav]").forEach(a => (a.dataset.nav === v ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    const navKey = v === "club" ? "clubs" : v;
+    document.querySelectorAll("[data-nav]").forEach(a => (a.dataset.nav === navKey ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     window.scrollTo(0, 0);
+    if (v === "club") renderClubPage(); else document.title = "Arizona Cornhole League";
   }
   addEventListener("hashchange", route);
 
@@ -58,7 +63,7 @@
         <div class="chips">${chips || `<span class="chip none">Links not added yet</span>`}</div>
         <div class="club-foot">
           <button class="linkbtn" type="button" data-edit-club="${esc(c.id)}">Update listing</button>
-          <button class="linkbtn" type="button" data-club-events="${esc(c.id)}">Events →</button>
+          <a class="btn btn-ghost btn-sm" href="#club-${esc(c.id)}">Club page →</a>
         </div>
       </article>`;
     }).join("");
@@ -90,46 +95,120 @@
     const f = $("#event-club-filter"); f.innerHTML = `<option value="">All clubs</option>` + opts; f.value = S.clubFilter;
   }
 
-  function renderEvents() {
-    const box = $("#event-list"), today = todayStr();
-    if (!S.loaded && S.status === "loading") { box.innerHTML = `<div class="empty"><b>Loading events…</b></div>`; return; }
-    // When a club posts an event by hand that Scoreholio also imported, show only the imported copy.
+  // When a club posts an event by hand that Scoreholio also imported, show only the imported copy.
+  function visibleEvents() {
     const normTitle = t => (t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     const imported = S.events.filter(e => e.source === "scoreholio");
     const isDuplicate = m => m.source !== "scoreholio" && imported.some(i => i.club_id === m.club_id && i.event_date === m.event_date &&
       (normTitle(i.title) === normTitle(m.title) || (m.scoreholio && i.scoreholio && m.scoreholio.replace(/\/$/, "") === i.scoreholio.replace(/\/$/, ""))));
-    let list = S.events.filter(e => (S.when === "upcoming" ? e.event_date >= today : e.event_date < today) && !isDuplicate(e));
+    return S.events.filter(e => !isDuplicate(e));
+  }
+  const evKey = e => e.event_date + (e.start_time || "");
+
+  function eventCard(e) {
+    const d = parseDate(e.event_date), club = clubById(e.club_id);
+    const sh = safeHref(e.scoreholio);
+    let flyer = "";
+    if (e.flyer_path) {
+      flyer = /pdf/i.test(e.flyer_type || e.flyer_path)
+        ? `<a class="flyer-pdf" href="${esc(fileUrl(e.flyer_path))}" target="_blank" rel="noopener">View flyer<br>(PDF)</a>`
+        : `<button type="button" class="flyer" data-flyer="${esc(e.flyer_path)}" data-cap="${esc(e.title)}" aria-label="View flyer for ${esc(e.title)}" style="background:url('${esc(fileUrl(e.flyer_path))}') center/cover var(--sunk)"></button>`;
+    }
+    const showReg = Number.isInteger(e.registered_teams) && (e.registered_teams > 0 || e.max_teams);
+    return `<article class="event">
+      <div class="date"><div class="m">${d ? d.toLocaleString("en-US", { month: "short" }) : ""}</div><div class="d">${d ? d.getDate() : "?"}</div><div class="w">${d ? d.toLocaleString("en-US", { weekday: "short" }) : ""}</div></div>
+      <div style="min-width:0">
+        <h3>${esc(e.title)}</h3>
+        <div class="meta"><span><b>${club ? `<a href="#club-${esc(club.id)}" class="club-link">${esc(club.name)}</a>` : "AZ club"}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
+        ${(e.entry_fee || showReg) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${showReg ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : ""}
+        <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.details ? `<button type="button" class="details-toggle" data-details="${esc(e.id)}" aria-expanded="${S.open.has(e.id)}" aria-controls="det-${esc(e.id)}">Details <span class="chev" aria-hidden="true">▾</span></button>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
+        ${e.details ? `<p class="details" id="det-${esc(e.id)}" ${S.open.has(e.id) ? "" : "hidden"}>${esc(e.details)}</p>` : ""}
+      </div>
+      <div class="flyer-col">${flyer}</div>
+    </article>`;
+  }
+
+  function renderEvents() {
+    const box = $("#event-list"), today = todayStr();
+    if (!S.loaded && S.status === "loading") { box.innerHTML = `<div class="empty"><b>Loading events…</b></div>`; return; }
+    let list = visibleEvents().filter(e => (S.when === "upcoming" ? e.event_date >= today : e.event_date < today));
     if (S.clubFilter) list = list.filter(e => e.club_id === S.clubFilter);
-    const key = e => e.event_date + (e.start_time || "");
-    list.sort((a, b) => (S.when === "upcoming" ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))));
+    list.sort((a, b) => (S.when === "upcoming" ? evKey(a).localeCompare(evKey(b)) : evKey(b).localeCompare(evKey(a))));
     if (!list.length) {
       box.innerHTML = `<div class="empty"><b>${S.when === "upcoming" ? "No upcoming events posted yet" : "No past events"}</b>${S.when === "upcoming" ? `Club organizers can add one with <button class="linkbtn" type="button" data-open="event">Post Event Here</button>.` : "Events move here after their date."}</div>`;
       return;
     }
-    box.innerHTML = list.map(e => {
-      const d = parseDate(e.event_date), club = clubById(e.club_id);
-      const sh = safeHref(e.scoreholio);
-      let flyer = "";
-      if (e.flyer_path) {
-        flyer = /pdf/i.test(e.flyer_type || e.flyer_path)
-          ? `<a class="flyer-pdf" href="${esc(fileUrl(e.flyer_path))}" target="_blank" rel="noopener">View flyer<br>(PDF)</a>`
-          : `<button type="button" class="flyer" data-flyer="${esc(e.flyer_path)}" data-cap="${esc(e.title)}" aria-label="View flyer for ${esc(e.title)}" style="background:url('${esc(fileUrl(e.flyer_path))}') center/cover var(--sunk)"></button>`;
-      }
-      return `<article class="event">
-        <div class="date"><div class="m">${d ? d.toLocaleString("en-US", { month: "short" }) : ""}</div><div class="d">${d ? d.getDate() : "?"}</div><div class="w">${d ? d.toLocaleString("en-US", { weekday: "short" }) : ""}</div></div>
-        <div style="min-width:0">
-          <h3>${esc(e.title)}</h3>
-          <div class="meta"><span><b>${esc(club ? club.name : "AZ club")}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
-          ${(() => {
-            const showReg = Number.isInteger(e.registered_teams) && (e.registered_teams > 0 || e.max_teams);
-            return (e.entry_fee || showReg) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${showReg ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : "";
-          })()}
-          <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.details ? `<button type="button" class="details-toggle" data-details="${esc(e.id)}" aria-expanded="${S.open.has(e.id)}" aria-controls="det-${esc(e.id)}">Details <span class="chev" aria-hidden="true">▾</span></button>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
-          ${e.details ? `<p class="details" id="det-${esc(e.id)}" ${S.open.has(e.id) ? "" : "hidden"}>${esc(e.details)}</p>` : ""}
+    box.innerHTML = list.map(eventCard).join("");
+  }
+
+  /* ---------- Club page ---------- */
+  const extrasCache = {};
+  async function loadClubExtras(id) {
+    if (extrasCache[id]) return extrasCache[id];
+    const [p, sp] = await Promise.all([
+      sb.from("club_photos").select("id,path,caption").eq("club_id", id).order("created_at", { ascending: false }),
+      sb.from("club_sponsors").select("id,name,logo_path,url").eq("club_id", id).order("created_at")
+    ]);
+    return (extrasCache[id] = { photos: p.error ? [] : p.data, sponsors: sp.error ? [] : sp.data });
+  }
+  async function renderClubPage() {
+    const box = $("#club-page");
+    if (!S.pageClub) return;
+    if (!S.loaded) { box.innerHTML = `<div class="empty"><b>Loading club…</b></div>`; return; }
+    const c = clubById(S.pageClub);
+    if (!c) { box.innerHTML = `<div class="empty"><b>Club not found</b><a href="#clubs">Browse all clubs</a></div>`; return; }
+    document.title = `${c.name} · Arizona Cornhole League`;
+    const id = c.id;
+    const ex = sb ? await loadClubExtras(id) : { photos: [], sponsors: [] };
+    if (S.pageClub !== id) return; // navigated away while loading
+    const today = todayStr();
+    const upcoming = visibleEvents().filter(e => e.club_id === id && e.event_date >= today).sort((a, b) => evKey(a).localeCompare(evKey(b)));
+    const types = c.event_types || [];
+    const booking = c.booking_enabled && c.booking_email;
+    const mail = booking ? `mailto:${encodeURIComponent(c.booking_email).replace(/%40/g, "@")}?subject=${encodeURIComponent("Booking inquiry for " + c.name + " (via azcornholeleague.com)")}` : "";
+    const hasPotw = !!c.potw_name;
+    const empty = !c.about && !types.length && !ex.photos.length && !ex.sponsors.length && !hasPotw;
+    const section = (title, html) => `<section class="cp-sec"><h2>${title}</h2>${html}</section>`;
+    box.innerHTML = `
+      <a class="back-link" href="#clubs">← All clubs</a>
+      <header class="cp-head">
+        ${c.logo_path ? `<img class="cp-logo" src="${esc(fileUrl(c.logo_path))}" alt="${esc(c.name)} logo">` : `<span class="cp-logo">${esc(initials(c.name))}</span>`}
+        <div class="cp-id">
+          <span class="eyebrow">AZ cornhole club</span>
+          <h1>${esc(c.name)}</h1>
+          <div class="city">${esc(c.city)}, AZ</div>
+          <div class="chips">${chip(c.scoreholio, "Scoreholio", "sh")}${socialIcons(c)}</div>
         </div>
-        <div class="flyer-col">${flyer}</div>
-      </article>`;
-    }).join("");
+        ${booking ? `<div class="cp-book">
+          <a class="btn btn-primary" href="${esc(mail)}">Book us</a>
+          <span>or email <b class="sel">${esc(c.booking_email)}</b></span>
+        </div>` : ""}
+      </header>
+      ${types.length ? `<div class="cp-types" aria-label="Events we run">${types.map(t => `<span class="type-chip">${esc(t)}</span>`).join("")}</div>` : ""}
+      ${empty ? `<div class="notice">${esc(c.name)} hasn't set up its club page yet. Run this club? <a href="manage.html?club=${esc(id)}">Sign in to add your About Us, photos and more</a>.</div>` : ""}
+      <div class="cp-grid">
+        <div class="cp-main">
+          ${c.about ? section("About us", `<p class="cp-about">${esc(c.about)}</p>`) : ""}
+          ${ex.photos.length ? section("Photos", `<div class="cp-photos">${ex.photos.map(ph => `<button type="button" class="cp-photo" data-flyer="${esc(ph.path)}" data-cap="${esc(ph.caption || c.name)}" aria-label="View photo${ph.caption ? ": " + esc(ph.caption) : ""}"><img src="${esc(fileUrl(ph.path))}" alt="${esc(ph.caption || "")}" loading="lazy"></button>`).join("")}</div>`) : ""}
+          ${section("Upcoming events", upcoming.length ? `<div class="events">${upcoming.slice(0, 8).map(eventCard).join("")}</div>${upcoming.length > 8 ? `<p><button class="linkbtn" type="button" data-club-events="${esc(id)}">See all ${upcoming.length} events →</button></p>` : ""}` : `<p class="muted">No upcoming events posted yet.</p>`)}
+        </div>
+        <aside class="cp-side">
+          ${hasPotw ? `<section class="cp-card potw">
+            <span class="eyebrow">Player of the week</span>
+            ${c.potw_photo_path ? `<img class="potw-photo" src="${esc(fileUrl(c.potw_photo_path))}" alt="${esc(c.potw_name)}">` : ""}
+            <h3>${esc(c.potw_name)}</h3>
+            ${c.potw_blurb ? `<p>${esc(c.potw_blurb)}</p>` : ""}
+          </section>` : ""}
+          ${ex.sponsors.length ? `<section class="cp-card">
+            <span class="eyebrow">Club sponsors</span>
+            <div class="sponsors">${ex.sponsors.map(sp => {
+              const inner = sp.logo_path ? `<img src="${esc(fileUrl(sp.logo_path))}" alt="${esc(sp.name)}">` : `<b>${esc(sp.name)}</b>`;
+              return safeHref(sp.url) ? `<a class="sponsor" href="${esc(sp.url)}" target="_blank" rel="noopener" title="${esc(sp.name)}">${inner}</a>` : `<span class="sponsor" title="${esc(sp.name)}">${inner}</span>`;
+            }).join("")}</div>
+          </section>` : ""}
+          <p class="muted cp-manage"><a href="manage.html?club=${esc(id)}">Manage this club page</a></p>
+        </aside>
+      </div>`;
   }
 
   function renderStats() {
@@ -141,6 +220,7 @@
   function render() {
     document.querySelectorAll(".db-note").forEach(n => (n.innerHTML = statusNote()));
     renderStats(); renderClubs(); renderVendors(); renderClubOptions(); renderEvents();
+    if (S.pageClub) renderClubPage();
   }
 
   /* ---------- Loading ---------- */
@@ -150,11 +230,16 @@
     const r = await sb.from("events").select(EV_BASE + ",source,entry_fee,registered_teams,max_teams").eq("status", "approved").order("event_date");
     return r.error ? sb.from("events").select(EV_BASE).eq("status", "approved").order("event_date") : r;
   }
+  const CLUB_BASE = "id,name,city,logo_path,website,facebook,instagram,tiktok,youtube,scoreholio";
+  async function loadClubs() {
+    const r = await sb.from("clubs").select(CLUB_BASE + ",about,event_types,booking_enabled,booking_email,potw_name,potw_blurb,potw_photo_path").eq("status", "approved").order("name");
+    return r.error ? sb.from("clubs").select(CLUB_BASE).eq("status", "approved").order("name") : r;
+  }
   async function load() {
     if (!sb) { S.status = configured ? "error" : "unconfigured"; render(); return; }
     try {
       const [c, v, e] = await Promise.all([
-        sb.from("clubs").select("id,name,city,logo_path,website,facebook,instagram,tiktok,youtube,scoreholio").eq("status", "approved").order("name"),
+        loadClubs(),
         sb.from("vendors").select("id,name,category,city,blurb,logo_path,website,shop,facebook,instagram,tiktok,youtube").eq("status", "approved").order("name"),
         loadEvents()
       ]);
