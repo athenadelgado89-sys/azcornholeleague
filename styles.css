@@ -209,3 +209,7 @@ footer a:hover{color:var(--ink)}
 .details-toggle .chev{display:inline-block;transition:transform .15s ease}
 .details-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .event .details{border-top:1px solid var(--line);padding-top:10px;margin-top:12px}
+.chips{align-items:center}
+.icon-link{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;transition:border-color .15s ease,transform .15s ease}
+.icon-link:hover{border-color:var(--copper);transform:translateY(-1px)}
+.icon-link svg{display:block}

@@ -32,6 +32,15 @@
     ? `<img class="club-logo" src="${esc(fileUrl(path))}" alt="${esc(name)} logo" data-i="${esc(initials(name))}" loading="lazy">`
     : `<span class="club-logo" aria-hidden="true">${esc(initials(name))}</span>`;
   const chip = (href, label, cls = "") => safeHref(href) ? `<a class="chip ${cls}" href="${esc(href)}" target="_blank" rel="noopener">${label}</a>` : "";
+  const GLOBE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+  const iconLink = (href, key, name) => {
+    if (!safeHref(href)) return "";
+    const ic = window.AZCL.ICONS[key];
+    const svg = key === "website" ? GLOBE : `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="${ic.color}" d="${ic.path}"/></svg>`;
+    const label = `${name} on ${key === "website" ? "the web" : ic.label}`;
+    return `<a class="icon-link" href="${esc(href)}" target="_blank" rel="noopener" aria-label="${esc(label)}" title="${key === "website" ? "Website" : ic.label}">${svg}</a>`;
+  };
+  const socialIcons = (x) => ["website", "facebook", "instagram", "tiktok", "youtube"].map(k => iconLink(x[k], k, x.name)).join("");
 
   function renderClubs() {
     const q = S.q.trim().toLowerCase();
@@ -43,7 +52,7 @@
       return;
     }
     grid.innerHTML = list.map(c => {
-      const chips = chip(c.scoreholio, "Scoreholio", "sh") + chip(c.website, "Website") + chip(c.facebook, "Facebook") + chip(c.instagram, "Instagram") + chip(c.tiktok, "TikTok") + chip(c.youtube, "YouTube");
+      const chips = chip(c.scoreholio, "Scoreholio", "sh") + socialIcons(c);
       return `<article class="club">
         <div class="club-top">${logoHtml(c.logo_path, c.name)}<div style="min-width:0"><h3>${esc(c.name)}</h3><div class="city">${esc(c.city)}, AZ</div></div></div>
         <div class="chips">${chips || `<span class="chip none">Links not added yet</span>`}</div>
@@ -65,7 +74,7 @@
       return;
     }
     grid.innerHTML = list.map(v => {
-      const chips = chip(v.shop, "Shop", "sh") + chip(v.website, "Website") + chip(v.facebook, "Facebook") + chip(v.instagram, "Instagram") + chip(v.tiktok, "TikTok") + chip(v.youtube, "YouTube");
+      const chips = chip(v.shop, "Shop", "sh") + socialIcons(v);
       return `<article class="club">
         <div class="club-top">${logoHtml(v.logo_path, v.name)}<div style="min-width:0">${v.category ? `<span class="vtag">${esc(v.category)}</span>` : ""}<h3>${esc(v.name)}</h3>${v.city ? `<div class="city">${esc(v.city)}, AZ</div>` : ""}</div></div>
         ${v.blurb ? `<p class="blurb">${esc(v.blurb)}</p>` : ""}
