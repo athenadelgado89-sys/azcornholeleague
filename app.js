@@ -93,6 +93,7 @@
     const opts = S.clubs.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${esc(c.city)})</option>`).join("");
     const sel = $("#ev-club"), cur = sel.value; sel.innerHTML = `<option value="">Select your club</option>` + opts; sel.value = cur;
     const f = $("#event-club-filter"); f.innerHTML = `<option value="">All clubs</option>` + opts; f.value = S.clubFilter;
+    const hc = $("#host-club"), hv = hc.value; hc.innerHTML = `<option value="">Select your club</option>` + opts; hc.value = hv;
   }
 
   // When a club posts an event by hand that Scoreholio also imported, show only the imported copy.
@@ -260,6 +261,8 @@
       open ? S.open.add(id) : S.open.delete(id);
       return;
     }
+    const hb = e.target.closest("[data-host]");
+    if (hb) { openHostForm(hb.dataset.host); return; }
     const t = e.target.closest("[data-open],[data-close],[data-edit-club],[data-edit-vendor],[data-club-events],[data-flyer],[data-when]");
     if (!t) return;
     if (t.dataset.open === "club") openClubForm(null);
@@ -381,6 +384,39 @@
       toast(replaces ? "Thanks! Your update will show once AZCL approves it." : "Thanks! Your listing will appear once AZCL approves it.");
     } catch (x) { err.textContent = "Couldn't submit: " + friendly(x); }
     finally { btn.disabled = false; btn.textContent = "Submit for review"; }
+  });
+
+  /* ---------- Request to host a State Region Event ---------- */
+  function openHostForm(slot) {
+    $("#host-form").reset(); $("#host-err").textContent = "";
+    $("#host-slot").value = slot;
+    $("#host-title").textContent = `Request to host State Region Event ${slot}`;
+    openDlg("dlg-host");
+  }
+  $("#host-club").addEventListener("change", e => { const c = clubById(e.target.value); if (c && !$("#host-city").value) $("#host-city").value = c.city; });
+  $("#host-add-club").addEventListener("click", () => { closeDlg($("#dlg-host")); openClubForm(null); });
+  $("#host-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("#host-err"); err.textContent = "";
+    if (notReady(err)) return;
+    if ($("#host-hp").value) { closeDlg($("#dlg-host")); return; }
+    const v = k => $(`#host-${k}`).value.trim();
+    const missing = [["club", "your club"], ["venue", "venue"], ["city", "city"], ["dates", "preferred dates"]].filter(([k]) => !v(k)).map(([, l]) => l);
+    if (missing.length) { err.textContent = "Add " + missing.join(", ") + "."; return; }
+    const contact = readContact("host", err); if (!contact) return;
+    const btn = $("#host-save"); btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const boards = parseInt(v("boards"), 10);
+      const { error } = await sb.from("host_requests").insert({
+        slot: Number(v("slot")) || null, club_id: v("club"), venue: v("venue"), city: v("city"), preferred_dates: v("dates"),
+        boards: Number.isFinite(boards) ? boards : null, notes: v("notes") || null,
+        contact_name: contact.name, contact_email: contact.email, contact_phone: contact.phone
+      });
+      if (error) throw error;
+      closeDlg($("#dlg-host"));
+      toast("Thanks! AZCL will be in touch about hosting.");
+    } catch (x) { err.textContent = "Couldn't send: " + friendly(x); }
+    finally { btn.disabled = false; btn.textContent = "Send request"; }
   });
 
   /* ---------- Event form ---------- */

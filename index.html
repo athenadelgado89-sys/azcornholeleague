@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202610301935">
+<link rel="stylesheet" href="styles.css?v=202611111259">
 </head>
 <body>
 <header class="top">
@@ -49,11 +49,47 @@
         <div class="season-card">
           <span class="season-tag">Season 1</span>
           <div>
-            <h2>Season details coming soon</h2>
-            <p>The AZCL points schedule, statewide points standings and the Arizona State Championships are being finalized with club organizers. Dates and rules will be posted here.</p>
+            <h2>Six State Region Events</h2>
+            <p>Season 1 is built around six State Region Events hosted by clubs across Arizona. The first is officially set. Clubs can request to host the other five.</p>
           </div>
         </div>
       </div>
+
+      <section class="sre" aria-labelledby="sre-title">
+        <h2 id="sre-title" class="sr-only">Season 1 State Region Events</h2>
+
+        <article class="sre-feature">
+          <a class="sre-logo" href="https://azwwso.com/" target="_blank" rel="noopener" aria-label="Wild West Shoot Out event details (opens azwwso.com)">
+            <img src="https://yhiqyqszatwmsuozafwy.supabase.co/storage/v1/object/public/uploads/events/wwso-logo-2027.png" alt="Wild West Shoot Out" width="1000" height="357">
+          </a>
+          <div class="sre-body">
+            <span class="sre-num">State Region Event 1</span>
+            <h3>Wild West Shoot Out</h3>
+            <p class="sre-when"><b>January 15–17, 2027</b><span>Dink &amp; Dine Pickle Park · Mesa, AZ</span></p>
+            <p class="sre-blurb">The inaugural event of the Arizona Cornhole League. Three days of Open and Rec singles and doubles, Crew Cup, Switcholio and invitationals, with something for every skill level.</p>
+            <div class="sre-actions">
+              <a class="btn btn-primary" href="https://app.scoreholio.com/v2/cornhole/player/findtournament?location=disabled&amp;lat=&amp;lng=&amp;customType=Organizer&amp;customId=GkSY6KWPK1WOTzZbW3j2IR5Ioxe2&amp;cache=1794426766" target="_blank" rel="noopener">Register on Scoreholio ↗</a>
+              <a class="btn btn-ghost" href="https://azwwso.com/" target="_blank" rel="noopener">Event details ↗</a>
+            </div>
+          </div>
+          <div class="sre-thanks">
+            <span class="eyebrow">Thank you to our partners and sponsors</span>
+            <dl>
+              <div><dt>Title sponsor</dt><dd>Draggin' Bags</dd></div>
+              <div><dt>Venue</dt><dd>Dink &amp; Dine Pickle Park</dd></div>
+              <div><dt>Vendors</dt><dd><ul class="sre-vendors"><li>Draggin' Bags</li><li>Shot Kings Cornhole</li><li>Dominant Sports</li><li>Scooter Bagz (BG rep)</li></ul></dd></div>
+            </dl>
+          </div>
+        </article>
+
+        <div class="sre-grid">
+          <article class="sre-soon"><span class="sre-num">State Region Event 2</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="2">Request to host →</button></article>
+          <article class="sre-soon"><span class="sre-num">State Region Event 3</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="3">Request to host →</button></article>
+          <article class="sre-soon"><span class="sre-num">State Region Event 4</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="4">Request to host →</button></article>
+          <article class="sre-soon"><span class="sre-num">State Region Event 5</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="5">Request to host →</button></article>
+          <article class="sre-soon"><span class="sre-num">State Region Event 6</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="6">Request to host →</button></article>
+        </div>
+      </section>
 
       <div class="sections">
         <a class="door" href="#clubs">
@@ -82,7 +118,7 @@
       <div class="soon">
         <h3>Coming later</h3>
         <div class="soon-row">
-          <div class="soon-item"><b>AZ Points Standings</b>Statewide rankings by division from AZCL points events.</div>
+          <div class="soon-item"><b>AZ Points Standings</b>Statewide rankings by division from the State Region Events.</div>
           <div class="soon-item"><b>Arizona Player Passport</b>Badges for events played and new clubs visited.</div>
           <div class="soon-item"><b>Player Profiles</b>Results, points and club visits for every player.</div>
         </div>
@@ -268,6 +304,45 @@
   </form>
 </dialog>
 
+<!-- Host request dialog -->
+<dialog id="dlg-host" aria-labelledby="host-title">
+  <div class="dlg-head">
+    <div><h2 id="host-title">Request to host</h2><p id="host-sub">Tell AZCL about your club and venue. We'll follow up about hosting a State Region Event.</p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <form class="f" id="host-form" novalidate>
+    <input type="hidden" id="host-slot">
+    <div class="fld">
+      <label for="host-club">Your club <span class="req">*</span></label>
+      <select id="host-club" required><option value="">Select your club</option></select>
+      <span class="hint">Not listed? <button type="button" class="linkbtn" id="host-add-club">Add your club first</button></span>
+    </div>
+    <div class="row2">
+      <div class="fld"><label for="host-venue">Venue <span class="req">*</span></label><input id="host-venue" required maxlength="120" placeholder="Venue name"></div>
+      <div class="fld"><label for="host-city">City <span class="req">*</span></label><input id="host-city" required maxlength="60" placeholder="e.g. Tucson"></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label for="host-dates">Preferred dates <span class="req">*</span></label><input id="host-dates" required maxlength="120" placeholder="e.g. March 2027, any weekend"></div>
+      <div class="fld"><label for="host-boards">Sets of boards the venue fits</label><input id="host-boards" type="number" min="1" max="500" inputmode="numeric" placeholder="e.g. 24"></div>
+    </div>
+    <div class="fld"><label for="host-notes">Tell us more</label><textarea id="host-notes" maxlength="1500" placeholder="Parking, food and drink, hotel nearby, events you've run before…"></textarea></div>
+    <fieldset>
+      <legend>Your contact info (private)</legend>
+      <div class="row2">
+        <div class="fld"><label for="host-cname">Your name <span class="req">*</span></label><input id="host-cname" required maxlength="80" autocomplete="name"></div>
+        <div class="fld"><label for="host-cemail">Email <span class="req">*</span></label><input id="host-cemail" type="email" required maxlength="120" autocomplete="email"></div>
+      </div>
+      <div class="fld"><label for="host-cphone">Phone</label><input id="host-cphone" type="tel" maxlength="30" autocomplete="tel"></div>
+    </fieldset>
+    <div class="hp" aria-hidden="true"><label for="host-hp">Leave blank</label><input id="host-hp" tabindex="-1" autocomplete="off"></div>
+    <div class="form-foot">
+      <span class="err" id="host-err" role="alert"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-primary" type="submit" id="host-save">Send request</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Event dialog -->
 <dialog id="dlg-event" aria-labelledby="event-title">
   <div class="dlg-head">
@@ -319,8 +394,8 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202610301935"></script>
-<script src="common.js?v=202610301935"></script>
-<script src="app.js?v=202610301935"></script>
+<script src="config.js?v=202611111259"></script>
+<script src="common.js?v=202611111259"></script>
+<script src="app.js?v=202611111259"></script>
 </body>
 </html>

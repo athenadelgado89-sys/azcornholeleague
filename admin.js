@@ -37,6 +37,8 @@
     A.clubs = c.data; A.vendors = v.data; A.events = e.data;
     const o = await sb.from("scoreholio_organizers").select("*").order("name");
     A.orgsReady = !o.error; A.orgs = o.data || [];
+    const hr = await sb.from("host_requests").select("*").order("created_at", { ascending: false });
+    A.hostsReady = !hr.error; A.hosts = hr.data || [];
     const mg = await sb.from("club_managers").select("club_id,email").order("email");
     A.managersReady = !mg.error; A.managers = mg.data || [];
     const pendingIds = [...A.clubs, ...A.vendors, ...A.events].filter(x => x.status === "pending").map(x => x.id);
@@ -139,6 +141,8 @@
     $("#count-pending").textContent = pc.length + pv.length + pe.length;
     const unlinked = A.orgs.filter(o => !o.ignored && !A.clubs.some(c => c.scoreholio_organizer_id === o.id));
     $("#count-sh").textContent = unlinked.length; $("#count-sh").hidden = !unlinked.length;
+    const newHosts = (A.hosts || []).filter(h => !h.handled).length;
+    $("#count-hosts").textContent = newHosts; $("#count-hosts").hidden = !newHosts;
     document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === A.tab)));
     const body = $("#admin-body");
     const section = (title, html) => `<h2 style="font-size:24px;text-transform:uppercase;margin:24px 0 12px">${title}</h2>${html}`;
@@ -148,6 +152,32 @@
         (pe.length ? section(`Events (${pe.length})`, `<div class="queue">${pe.map(e => eventCard(e, true)).join("")}</div>`) : "") +
         (pc.length ? section(`Clubs (${pc.length})`, `<div class="queue">${pc.map(c => listingCard("club", c, CLUB_FIELDS)).join("")}</div>`) : "") +
         (pv.length ? section(`Vendors (${pv.length})`, `<div class="queue">${pv.map(v => listingCard("vendor", v, VENDOR_FIELDS)).join("")}</div>`) : "");
+    } else if (A.tab === "hosts") {
+      if (!A.hostsReady) { body.innerHTML = `<div class="notice">Host requests aren't set up yet. Run 04-host-requests.sql in Supabase first.</div>`; return; }
+      body.innerHTML = A.hosts.length ? `<div class="queue">${A.hosts.map(h => {
+        const club = A.clubs.find(c => c.id === h.club_id);
+        return `<article class="qitem" style="${h.handled ? "opacity:.65" : ""}">
+          <span class="thumb">${h.slot ? "#" + h.slot : "?"}</span>
+          <div style="min-width:0">
+            ${h.handled ? `<span class="badge-new">Handled</span>` : `<span class="badge-upd">New request</span>`}
+            <h3>${esc(club ? club.name : "Club not listed")}${h.slot ? ` · State Region Event ${h.slot}` : ""}</h3>
+            <dl class="kv">
+              <dt>Venue</dt><dd>${esc(h.venue)}, ${esc(h.city)}</dd>
+              <dt>Dates</dt><dd>${esc(h.preferred_dates)}</dd>
+              ${h.boards ? `<dt>Boards</dt><dd>${h.boards} sets</dd>` : ""}
+              ${h.notes ? `<dt>Notes</dt><dd style="white-space:pre-line">${esc(h.notes)}</dd>` : ""}
+              <dt>Sent</dt><dd>${esc(new Date(h.created_at).toLocaleString("en-US", { timeZone: "America/Phoenix", dateStyle: "medium", timeStyle: "short" }))}</dd>
+            </dl>
+            <div class="contact"><b>Contact</b> ${esc(h.contact_name)} · <span style="user-select:all">${esc(h.contact_email)}</span>${h.contact_phone ? " · " + esc(h.contact_phone) : ""}</div>
+            <div class="event-actions">
+              <button class="btn btn-${h.handled ? "ghost" : "primary"} btn-sm" data-act="host-toggle" data-id="${h.id}" data-handled="${h.handled}">${h.handled ? "Mark as new" : "Mark handled"}</button>
+              ${A.confirm === "host:" + h.id
+                ? `<button class="btn btn-sm btn-danger" data-act="host-del" data-id="${h.id}">Confirm delete</button><button class="linkbtn" data-act="cancel">Keep</button>`
+                : `<button class="linkbtn" data-act="host-ask" data-id="${h.id}">Delete</button>`}
+            </div>
+          </div>
+        </article>`;
+      }).join("")}</div>` : `<div class="empty"><b>No host requests yet</b>Requests from the "Request to host" buttons on the home page show up here.</div>`;
     } else if (A.tab === "scoreholio") {
       body.innerHTML = renderScoreholio(unlinked);
     } else if (A.tab === "live-events") {
@@ -230,6 +260,7 @@
     if (act === "cancel") { A.confirm = null; render(); return; }
     if (act === "reject") { A.confirm = "reject:" + id; render(); return; }
     if (act === "remove") { A.confirm = "remove:" + id; render(); return; }
+    if (act === "host-ask") { A.confirm = "host:" + id; render(); return; }
     A.busy = true; b.disabled = true;
     try {
       if (act === "approve") { await approve(type, id); toast("Approved. It's live on the site."); }
@@ -241,6 +272,8 @@
         await sb.from("scoreholio_organizers").update({ ignored: false }).eq("id", id);
         toast("Linked. Their tournaments arrive at the next hourly import.");
       }
+      if (act === "host-toggle") { const { error } = await sb.from("host_requests").update({ handled: b.dataset.handled !== "true" }).eq("id", id); if (error) throw error; toast("Updated."); }
+      if (act === "host-del") { const { error } = await sb.from("host_requests").delete().eq("id", id); if (error) throw error; toast("Deleted."); }
       if (act === "mgr-add") {
         const email = (document.getElementById("mgr-" + id).value || "").trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("enter a valid email");
