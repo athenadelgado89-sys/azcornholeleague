@@ -265,6 +265,7 @@
   }
 
   /* ---------- Season events ---------- */
+  const imgSrc = p => /^(https?:\/\/|assets\/)/.test(p || "") ? p : fileUrl(p);
   function renderSeasonAdmin() {
     if (!A.seasonReady) return `<div class="notice">Season events aren't set up yet. Run 05-season-events.sql in Supabase first.</div>`;
     const roles = window.AZCL.SPONSOR_ROLES;
@@ -275,7 +276,7 @@
         const id = e.slot;
         return `<article class="ed-card season-ed">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <h2>State Region Event ${id}${e.title ? ` · ${esc(e.title)}` : ""}</h2>
+            <h2>${e.kind === "championship" ? "State Championships" : `State Region Event ${id}`}${e.title ? ` · ${esc(e.title)}` : ""}</h2>
             <select id="s${id}-status" aria-label="Status of event ${id}" class="mgr-input" style="width:auto">
               <option value="soon" ${e.status !== "set" ? "selected" : ""}>Coming soon</option>
               <option value="set" ${e.status === "set" ? "selected" : ""}>Confirmed</option>
@@ -286,7 +287,7 @@
           <div class="fld"><label for="s${id}-blurb">Short description</label><textarea id="s${id}-blurb" maxlength="500" rows="3">${esc(e.blurb || "")}</textarea></div>
           <div class="row2">${f(id, "details", "Event website", 'type="url" placeholder="https://"', e.details_url)}${f(id, "register", "Scoreholio registration link", 'type="url" placeholder="https://"', e.register_url)}</div>
           <div class="fld"><label for="s${id}-logo">Event logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
-            ${e.logo_path ? `<div class="preview-logo"><img src="${esc(fileUrl(e.logo_path))}" alt="" style="width:auto;max-width:160px;background:var(--band)">Current logo. Choose a file to replace it.</div>` : ""}
+            ${e.logo_path ? `<div class="preview-logo"><img src="${esc(imgSrc(e.logo_path))}" alt="" style="width:auto;max-width:160px;background:var(--band)">Current logo. Choose a file to replace it.</div>` : ""}
             <input id="s${id}-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
           <fieldset>
             <legend>Card colors</legend>
@@ -301,13 +302,24 @@
 
           <h3 style="font-family:var(--body);font-size:16px;font-weight:800;margin-top:6px">Partners and sponsors</h3>
           ${sp.length ? sp.map(x => `<div class="live-row">
-            ${x.logo_path ? `<img class="thumb" src="${esc(fileUrl(x.logo_path))}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff">` : `<span class="thumb" style="width:44px;height:44px;font-size:14px">${esc(initials(x.name))}</span>`}
-            <div><b>${esc(x.name)}</b><span>${esc(x.role)}${x.url ? " · " + esc(x.url) : ""}</span></div>
+            ${x.logo_path ? `<img class="thumb" src="${esc(imgSrc(x.logo_path))}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff">` : `<span class="thumb" style="width:44px;height:44px;font-size:14px">${esc(initials(x.name))}</span>`}
+            <div><b>${esc(x.name)}</b><span>${esc(x.role)}</span>
+              <div class="mgrs">
+                <input id="spx-url-${x.id}" class="mgr-input" type="url" value="${esc(x.url || "")}" placeholder="Website" aria-label="Website for ${esc(x.name)}">
+                <label class="linkbtn" style="cursor:pointer">${x.logo_path ? "Change logo" : "Add logo"}<input id="spx-logo-${x.id}" type="file" accept="image/png,image/jpeg,image/webp" hidden></label>
+                <button class="btn btn-ghost btn-sm" data-act="sp-save" data-id="${x.id}">Save</button>
+              </div>
+            </div>
             ${A.confirm === "sp:" + x.id
               ? `<button class="btn btn-sm btn-danger" data-act="sp-del" data-id="${x.id}">Remove</button><button class="linkbtn" data-act="cancel">Keep</button>`
               : `<button class="linkbtn" data-act="sp-ask" data-id="${x.id}">Remove</button>`}
           </div>`).join("") : `<p class="muted" style="margin:0">No sponsors yet.</p>`}
           <div class="sp-add">
+            <select id="s${id}-sp-pick" data-slot="${id}" class="mgr-input sp-pick" style="width:auto" aria-label="Fill in from the directory">
+              <option value="">Pick from directory…</option>
+              <optgroup label="Vendors">${A.vendors.filter(v => v.status === "approved").map(v => `<option value="vendor:${v.id}">${esc(v.name)}</option>`).join("")}</optgroup>
+              <optgroup label="Clubs">${A.clubs.filter(c => c.status === "approved").map(c => `<option value="club:${c.id}">${esc(c.name)}</option>`).join("")}</optgroup>
+            </select>
             <select id="s${id}-sp-role" aria-label="Sponsor role" class="mgr-input" style="width:auto">${roles.map(r => `<option>${r}</option>`).join("")}</select>
             <input id="s${id}-sp-name" class="mgr-input" maxlength="80" placeholder="Sponsor name" aria-label="Sponsor name">
             <input id="s${id}-sp-url" class="mgr-input" type="url" placeholder="Website (optional)" aria-label="Sponsor website">
@@ -334,12 +346,40 @@
     const { error } = await sb.from("season_events").update(data).eq("slot", slot);
     if (error) throw error;
   }
+  // "Pick from directory": fill the sponsor name and website from a club or vendor listing, and reuse its logo
+  function pickedListing(slot) {
+    const v = (document.getElementById(`s${slot}-sp-pick`) || {}).value || "";
+    const [kind, id] = v.split(":");
+    if (!id) return null;
+    const x = (kind === "vendor" ? A.vendors : A.clubs).find(r => r.id === id);
+    if (!x) return null;
+    return { name: x.name, url: x.website || x.shop || x.facebook || x.instagram || x.scoreholio || "", logo_path: x.logo_path || null };
+  }
+  document.addEventListener("change", e => {
+    if (/^spx-logo-/.test(e.target.id || "") && e.target.files[0]) { toast("Logo chosen. Click Save to update it."); return; }
+    const sel = e.target.closest(".sp-pick"); if (!sel) return;
+    const slot = sel.dataset.slot, x = pickedListing(slot); if (!x) return;
+    document.getElementById(`s${slot}-sp-name`).value = x.name;
+    document.getElementById(`s${slot}-sp-url`).value = x.url;
+    if (/vendor/.test(sel.value)) document.getElementById(`s${slot}-sp-role`).value = "Vendor";
+    toast(x.logo_path ? "Filled in, including their logo. Pick a role and click Add sponsor." : "Filled in. They don't have a logo on file, so you can upload one.");
+  });
+  async function saveSeasonSponsor(id) {
+    const url = window.AZCL.normUrl(document.getElementById("spx-url-" + id).value);
+    if (url === null) throw new Error("that website isn't a valid web address");
+    const data = { url: url || null };
+    const f = document.getElementById("spx-logo-" + id).files[0];
+    if (f) data.logo_path = await window.AZCL.upload("sponsors", f);
+    const { error } = await sb.from("season_sponsors").update(data).eq("id", id);
+    if (error) throw error;
+  }
   async function addSeasonSponsor(slot) {
     const v = k => (document.getElementById(`s${slot}-sp-${k}`).value || "").trim();
     const name = v("name"); if (!name) throw new Error("add the sponsor's name");
     const url = window.AZCL.normUrl(v("url")); if (url === null) throw new Error("the sponsor website isn't a valid web address");
     const file = document.getElementById(`s${slot}-sp-logo`).files[0];
-    const logo_path = file ? await window.AZCL.upload("sponsors", file) : null;
+    const pick = pickedListing(slot);
+    const logo_path = file ? await window.AZCL.upload("sponsors", file) : (pick && pick.logo_path) || null;
     const { error } = await sb.from("season_sponsors").insert({ slot: Number(slot), role: v("role"), name, url: url || null, logo_path });
     if (error) throw error;
   }
@@ -393,6 +433,7 @@
       if (act === "pl-unlink") { const { error } = await sb.from("players").update({ scoreholio_player_id: null }).eq("id", id); if (error) throw error; toast("Unlinked."); }
       if (act === "season-save") { await saveSeason(id); toast(`Event ${id} saved. It's live on the home page.`); }
       if (act === "sp-add") { await addSeasonSponsor(id); toast("Sponsor added."); }
+      if (act === "sp-save") { await saveSeasonSponsor(id); toast("Sponsor updated."); }
       if (act === "sp-del") { const { error } = await sb.from("season_sponsors").delete().eq("id", id); if (error) throw error; toast("Sponsor removed."); }
       if (act === "host-toggle") { const { error } = await sb.from("host_requests").update({ handled: b.dataset.handled !== "true" }).eq("id", id); if (error) throw error; toast("Updated."); }
       if (act === "host-del") { const { error } = await sb.from("host_requests").delete().eq("id", id); if (error) throw error; toast("Deleted."); }

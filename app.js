@@ -334,6 +334,8 @@
     return r.error ? sb.from("clubs").select(CLUB_BASE).eq("status", "approved").order("name") : r;
   }
   /* ---------- Season 1: State Region Events (from the admin page) ---------- */
+  // Logos can be uploaded files (storage paths) or files that ship with the site (assets/…)
+  const imgSrc = p => /^(https?:\/\/|assets\/)/.test(p || "") ? p : fileUrl(p);
   function sponsorGroups(list) {
     const { SPONSOR_ROLES } = window.AZCL;
     return SPONSOR_ROLES.map(role => {
@@ -341,18 +343,19 @@
       if (!items.length) return "";
       const label = items.length > 1 ? (role === "Sponsor" ? "Sponsors" : role.endsWith("sponsor") ? role + "s" : role + "s") : role;
       return `<div><dt>${esc(label)}</dt><dd><ul class="sre-vendors">${items.map(x => {
-        const inner = `${x.logo_path ? `<img class="sre-sp-logo" src="${esc(fileUrl(x.logo_path))}" alt="" loading="lazy">` : ""}<span>${esc(x.name)}</span>`;
+        const inner = `${x.logo_path ? `<img class="sre-sp-logo" src="${esc(imgSrc(x.logo_path))}" alt="" loading="lazy">` : ""}<span>${esc(x.name)}</span>`;
         return `<li>${safeHref(x.url) ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${inner}</a>` : inner}</li>`;
       }).join("")}</ul></dd></div>`;
     }).join("");
   }
   function renderSeason(events, sponsors) {
     const box = $("#sre"); if (!box || !events.length) return;
-    const set = events.filter(e => e.status === "set"), soon = events.filter(e => e.status !== "set");
+    const champs = events.filter(e => e.kind === "championship"), regions = events.filter(e => e.kind !== "championship");
+    const set = regions.filter(e => e.status === "set"), soon = regions.filter(e => e.status !== "set");
     const feature = e => {
       const sp = sponsors.filter(x => x.slot === e.slot);
       const where = [e.venue, e.city ? e.city + ", AZ" : ""].filter(Boolean).join(" · ");
-      const logo = e.logo_path ? `<img src="${esc(fileUrl(e.logo_path))}" alt="${esc(e.title || "")}">` : `<span class="sre-logo-text">${esc(e.title || "")}</span>`;
+      const logo = e.logo_path ? `<img src="${esc(imgSrc(e.logo_path))}" alt="${esc(e.title || "")}">` : `<span class="sre-logo-text">${esc(e.title || "")}</span>`;
       const hex = v => /^#[0-9a-f]{6}$/i.test(v || "") ? v : null;
       const vars = [["--sre-bg", e.theme_bg], ["--sre-ink", e.theme_text], ["--sre-accent", e.theme_accent], ["--sre-hl", e.theme_highlight]].filter(([, v]) => hex(v)).map(([k, v]) => `${k}:${v}`).join(";");
       // Two-tone title like the event's own branding: second half of the words in the accent color
@@ -361,7 +364,7 @@
       return `<article class="sre-feature${e.theme_font === "bebas" ? " font-bebas" : ""}"${vars ? ` style="${vars}"` : ""}>
         ${safeHref(e.details_url) ? `<a class="sre-logo" href="${esc(e.details_url)}" target="_blank" rel="noopener" aria-label="${esc(e.title)} event details">${logo}</a>` : `<div class="sre-logo">${logo}</div>`}
         <div class="sre-body">
-          <span class="sre-num">State Region Event ${e.slot}</span>
+          <span class="sre-num">${e.kind === "championship" ? "Season finale" : `State Region Event ${e.slot}`}</span>
           <h3>${title}</h3>
           ${(e.dates_text || where) ? `<p class="sre-when">${e.dates_text ? `<b>${esc(e.dates_text)}</b>` : ""}${where ? `<span>${esc(where)}</span>` : ""}</p>` : ""}
           ${e.blurb ? `<p class="sre-blurb">${esc(e.blurb)}</p>` : ""}
@@ -373,9 +376,25 @@
         ${sp.length ? `<div class="sre-thanks"><span class="eyebrow">Thank you to our partners and sponsors</span><dl>${sponsorGroups(sp)}</dl></div>` : `<div></div>`}
       </article>`;
     };
+    const hexv = v => /^#[0-9a-f]{6}$/i.test(v || "") ? v : null;
+    const champCard = e => {
+      if (e.status === "set") return feature(e);
+      const vars = [["--sre-bg", e.theme_bg], ["--sre-ink", e.theme_text], ["--sre-accent", e.theme_accent], ["--sre-hl", e.theme_highlight]].filter(([, v]) => hexv(v)).map(([k, v]) => `${k}:${v}`).join(";");
+      const img = e.logo_path ? `<img src="${esc(imgSrc(e.logo_path))}" alt="${esc(e.title || "Arizona State Cornhole Championships")}">` : "";
+      return `<article class="sre-champ"${vars ? ` style="${vars}"` : ""}>
+        ${img ? (safeHref(e.details_url) ? `<a class="sre-champ-logo" href="${esc(e.details_url)}" target="_blank" rel="noopener">${img}</a>` : `<div class="sre-champ-logo">${img}</div>`) : ""}
+        <div class="sre-champ-body">
+          <span class="sre-num">Season finale</span>
+          <h3>${esc(e.title || "Arizona State Cornhole Championships")}</h3>
+          <p><b>Coming soon</b>${e.dates_text ? ` · ${esc(e.dates_text)}` : ""}</p>
+          ${e.blurb ? `<p class="sre-blurb">${esc(e.blurb)}</p>` : ""}
+        </div>
+      </article>`;
+    };
     box.innerHTML = `<h2 id="sre-title" class="sr-only">Season 1 State Region Events</h2>
       ${set.map(feature).join("")}
-      ${soon.length ? `<div class="sre-grid">${soon.map(e => `<article class="sre-soon"><span class="sre-num">State Region Event ${e.slot}</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="${e.slot}">Request to host →</button></article>`).join("")}</div>` : ""}`;
+      ${soon.length ? `<div class="sre-grid">${soon.map(e => `<article class="sre-soon"><span class="sre-num">State Region Event ${e.slot}</span><b>${esc(e.dates_text || "Date TBA")}</b><span class="sre-soon-tag">Coming soon</span><button class="linkbtn" type="button" data-host="${e.slot}">Request to host →</button></article>`).join("")}</div>` : ""}
+      ${champs.map(champCard).join("")}`;
   }
   async function loadSeason() {
     const [ev, sp] = await Promise.all([
