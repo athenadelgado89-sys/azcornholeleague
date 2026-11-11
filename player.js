@@ -1,7 +1,7 @@
 // Player login and profile editor.
 (() => {
   const { sb, $, esc, normUrl, fileUrl, fmtDate, toast, upload } = window.AZCL;
-  const LINKS = [["website", "website"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"]];
+  const LINKS = [["website", "website"], ["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["scoreholio_url", "Scoreholio"]];
   const MAX_PHOTOS = 10;
   const P = { mode: "signup", user: null, me: null, photos: [], sponsors: [], results: [], confirm: null };
   const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);

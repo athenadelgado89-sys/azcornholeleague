@@ -150,7 +150,7 @@
   let playersPromise = null;
   function loadPlayers(force) {
     if (!sb) return Promise.resolve([]);
-    if (!playersPromise || force) playersPromise = sb.from("players").select("id,display_name,city,home_club_id,photo_path,about,website,facebook,instagram,tiktok,youtube,scoreholio_player_id").eq("hidden", false).order("display_name")
+    if (!playersPromise || force) playersPromise = sb.from("players").select("*").eq("hidden", false).order("display_name")
       .then(r => { S.players = r.error ? [] : r.data; S.playersReady = !r.error; return S.players; });
     return playersPromise;
   }
@@ -210,7 +210,7 @@
           <span class="eyebrow">Arizona player</span>
           <h1>${esc(p.display_name)}</h1>
           <div class="city">${[p.city ? esc(p.city) + ", AZ" : "", club ? `Home club: <a class="club-link" href="#club-${esc(club.id)}">${esc(club.name)}</a>` : ""].filter(Boolean).join(" · ")}</div>
-          <div class="chips">${socialIcons({ ...p, name: p.display_name })}</div>
+          <div class="chips">${safeHref(p.scoreholio_url) ? `<a class="chip sh" href="${esc(p.scoreholio_url)}" target="_blank" rel="noopener">My Scoreholio ↗</a>` : ""}${socialIcons({ ...p, name: p.display_name })}</div>
         </div>
       </header>
       ${statRows.length ? `<div class="pl-stats">${statRows.slice(0, 1).map(r => `
@@ -225,7 +225,14 @@
         <div class="cp-main">
           ${p.about ? section("About me", `<p class="cp-about">${esc(p.about)}</p>`) : ""}
           ${photos.length ? section("Podium photos", `<div class="cp-photos">${photos.map(x => `<button type="button" class="cp-photo" data-flyer="${esc(x.path)}" data-cap="${esc(x.caption || p.display_name)}" aria-label="View photo${x.caption ? ": " + esc(x.caption) : ""}"><img src="${esc(fileUrl(x.path))}" alt="${esc(x.caption || "")}" loading="lazy"></button>`).join("")}</div>`) : ""}
-          ${section("Results", results.length ? `<div class="table-wrap"><table class="results"><thead><tr><th>Date</th><th>Event</th><th>Finish</th><th>Division</th></tr></thead><tbody>${results.map(r => `<tr><td>${esc(window.AZCL.fmtDate(r.event_date))}</td><td>${esc(r.event_name)}${r.partner ? `<div class="muted" style="font-size:12px">with ${esc(r.partner)}</div>` : ""}</td><td><b>${esc(r.finish)}</b></td><td>${esc(r.division || "")}</td></tr>`).join("")}</tbody></table></div><p class="via">Results added by the player.</p>` : `<p class="muted">No results added yet.</p>`)}
+          ${section("Results", results.length ? `<div class="table-wrap"><table class="results"><thead><tr><th>Date</th><th>Event</th><th>Finish</th><th>Division</th></tr></thead><tbody>${results.map((r, i) => `<tr${i >= 15 ? ' class="more-row" hidden' : ""}><td>${esc(window.AZCL.fmtDate(r.event_date))}</td><td>${esc(r.event_name)}${r.partner ? `<div class="muted" style="font-size:12px">with ${esc(r.partner)}</div>` : ""}</td><td><b>${esc(r.finish)}</b></td><td>${esc(r.division || "")}</td></tr>`).join("")}</tbody></table></div>${results.length > 15 ? `<p><button class="btn btn-ghost btn-sm" type="button" data-more-results aria-expanded="false">Show all ${results.length} results</button></p>` : ""}<p class="via">Results added by the player.</p>` : `<p class="muted">No results added yet.</p>`)}
+          ${club ? (() => {
+            const today = todayStr();
+            const up = visibleEvents().filter(e => e.club_id === club.id && e.event_date >= today).sort((a, b) => evKey(a).localeCompare(evKey(b)));
+            return section(`Upcoming at ${esc(club.name)}`, up.length
+              ? `<ul class="ev-compact">${up.slice(0, 15).map(e => { const d = parseDate(e.event_date); const sh = safeHref(e.scoreholio); return `<li><span class="evc-date"><b>${d ? d.toLocaleString("en-US", { month: "short" }) : ""} ${d ? d.getDate() : ""}</b>${d ? d.toLocaleString("en-US", { weekday: "short" }) : ""}</span><span class="evc-main"><b>${esc(e.title)}</b><span>${[e.start_time ? fmtTime(e.start_time) : "", e.location].filter(Boolean).map(esc).join(" · ")}</span></span>${sh ? `<a class="btn btn-ghost btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Scoreholio ↗</a>` : ""}</li>`; }).join("")}</ul>${up.length > 15 ? `<p><a class="linkbtn" href="#club-${esc(club.id)}">See all ${up.length} events at ${esc(club.name)} →</a></p>` : ""}`
+              : `<p class="muted">No upcoming events posted for ${esc(club.name)} yet.</p>`);
+          })() : ""}
         </div>
         <aside class="cp-side">
           ${sponsors.length ? `<section class="cp-card"><span class="eyebrow">Sponsored by</span><div class="sponsors">${sponsors.map(x => {
@@ -423,6 +430,14 @@
   const openDlg = id => { const d = document.getElementById(id); if (!d.open) d.showModal(); };
   const closeDlg = d => d && d.open && d.close();
   document.addEventListener("click", e => {
+    const mr = e.target.closest("[data-more-results]");
+    if (mr) {
+      const open = mr.getAttribute("aria-expanded") !== "true";
+      mr.closest(".cp-sec").querySelectorAll(".more-row").forEach(r => (r.hidden = !open));
+      mr.setAttribute("aria-expanded", String(open));
+      mr.textContent = open ? "Show fewer" : `Show all ${mr.closest(".cp-sec").querySelectorAll("tbody tr").length} results`;
+      return;
+    }
     const dt = e.target.closest("[data-details]");
     if (dt) {
       const id = dt.dataset.details, panel = document.getElementById("det-" + id), open = dt.getAttribute("aria-expanded") !== "true";
