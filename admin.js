@@ -39,6 +39,8 @@
     A.orgsReady = !o.error; A.orgs = o.data || [];
     const [se, ss] = await Promise.all([sb.from("season_events").select("*").order("slot"), sb.from("season_sponsors").select("*").order("created_at")]);
     A.seasonReady = !se.error && !ss.error; A.season = se.data || []; A.seasonSponsors = ss.data || [];
+    const [pl, pst] = await Promise.all([sb.from("players").select("*").order("display_name"), sb.from("season_player_stats").select("scoreholio_player_id,player_name,club_name,season_name,division,played").eq("division", "all")]);
+    A.playersReady = !pl.error; A.players = pl.data || []; A.stats = pst.data || [];
     const hr = await sb.from("host_requests").select("*").order("created_at", { ascending: false });
     A.hostsReady = !hr.error; A.hosts = hr.data || [];
     const mg = await sb.from("club_managers").select("club_id,email").order("email");
@@ -154,6 +156,8 @@
         (pe.length ? section(`Events (${pe.length})`, `<div class="queue">${pe.map(e => eventCard(e, true)).join("")}</div>`) : "") +
         (pc.length ? section(`Clubs (${pc.length})`, `<div class="queue">${pc.map(c => listingCard("club", c, CLUB_FIELDS)).join("")}</div>`) : "") +
         (pv.length ? section(`Vendors (${pv.length})`, `<div class="queue">${pv.map(v => listingCard("vendor", v, VENDOR_FIELDS)).join("")}</div>`) : "");
+    } else if (A.tab === "players") {
+      body.innerHTML = renderPlayersAdmin();
     } else if (A.tab === "season") {
       body.innerHTML = renderSeasonAdmin();
     } else if (A.tab === "hosts") {
@@ -231,6 +235,33 @@
     const h = t => `<h2 style="font-size:22px;text-transform:uppercase;margin:24px 0 8px">${t}</h2>`;
     return intro + (toLink ? h(`Needs a club (${unlinked.length})`) + toLink : "") + (linkedHtml ? h(`Linked (${linked.length})`) + linkedHtml : "") + (ignoredHtml ? h(`Ignored (${ignored.length})`) + ignoredHtml : "")
       + `<p style="color:var(--muted);font-size:13px;margin-top:20px">New links take effect at the next hourly import. To import right away, open the GitHub repository → Actions → Sync Scoreholio events → Run workflow.</p>`;
+  }
+
+  /* ---------- Players ---------- */
+  function renderPlayersAdmin() {
+    if (!A.playersReady) return `<div class="notice">Player profiles aren't set up yet. Run 07-players.sql in Supabase first.</div>`;
+    const norm = n => (n || "").toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+    const intro = `<p style="color:var(--muted);margin-top:0;max-width:75ch">Profiles go live as soon as players create them. Hide any profile that shouldn't be public. To show season stats on a profile, link it to the player's Scoreholio ranking. Exact name matches link automatically, so only players whose names differ need a manual link.</p>`;
+    if (!A.players.length) return intro + `<div class="empty"><b>No player profiles yet</b>Players create profiles at azcornholeleague.com/player.html.</div>`;
+    return intro + A.players.map(p => {
+      const linked = p.scoreholio_player_id ? A.stats.find(s => s.scoreholio_player_id === p.scoreholio_player_id) : null;
+      const auto = !p.scoreholio_player_id ? A.stats.filter(s => norm(s.player_name) === norm(p.display_name)) : [];
+      const suggestions = !p.scoreholio_player_id ? A.stats.filter(s => { const a = norm(s.player_name).split(" "), b = norm(p.display_name).split(" "); return a[a.length - 1] === b[b.length - 1]; }).slice(0, 8) : [];
+      const statusLine = p.scoreholio_player_id ? `Linked to ${esc(linked ? linked.player_name : p.scoreholio_player_id)}${linked && linked.played != null ? ` · ${linked.played} events` : ""}`
+        : auto.length === 1 ? `Season stats matched by name` : A.stats.length ? `No season stats linked` : `Season stats appear once AZCL's Scoreholio season is connected`;
+      return `<div class="live-row" style="align-items:flex-start;${p.hidden ? "opacity:.6" : ""}">
+        ${p.photo_path ? `<img class="thumb" src="${esc(fileUrl(p.photo_path))}" alt="" style="width:44px;height:44px;border-radius:50%">` : `<span class="thumb" style="width:44px;height:44px;font-size:16px;border-radius:50%">${esc(initials(p.display_name))}</span>`}
+        <div><b>${esc(p.display_name)}${p.hidden ? ` <span class="badge-upd">Hidden</span>` : ""}</b><span>${esc([p.city, statusLine].filter(Boolean).join(" · "))}</span>
+          ${A.stats.length ? `<div class="mgrs">
+            ${p.scoreholio_player_id ? `<button class="linkbtn" data-act="pl-unlink" data-id="${p.id}">Unlink stats</button>` : `
+              <select id="pl-link-${p.id}" class="mgr-input" style="width:auto" aria-label="Scoreholio ranking for ${esc(p.display_name)}"><option value="">Link to a Scoreholio player…</option>${(suggestions.length ? suggestions : A.stats.slice(0, 200)).map(s => `<option value="${esc(s.scoreholio_player_id)}">${esc(s.player_name)}${s.club_name ? " (" + esc(s.club_name) + ")" : ""}</option>`).join("")}</select>
+              <button class="btn btn-ghost btn-sm" data-act="pl-link" data-id="${p.id}">Link</button>`}
+          </div>` : ""}
+        </div>
+        <a class="linkbtn" href="./#player-${p.id}" target="_blank" rel="noopener">View</a>
+        <button class="btn btn-ghost btn-sm" data-act="pl-hide" data-id="${p.id}" data-hidden="${p.hidden}">${p.hidden ? "Show" : "Hide"}</button>
+      </div>`;
+    }).join("");
   }
 
   /* ---------- Season events ---------- */
@@ -357,6 +388,9 @@
         await sb.from("scoreholio_organizers").update({ ignored: false }).eq("id", id);
         toast("Linked. Their tournaments arrive at the next hourly import.");
       }
+      if (act === "pl-hide") { const { error } = await sb.from("players").update({ hidden: b.dataset.hidden !== "true" }).eq("id", id); if (error) throw error; toast(b.dataset.hidden === "true" ? "Profile is visible again." : "Profile hidden."); }
+      if (act === "pl-link") { const v = document.getElementById("pl-link-" + id).value; if (!v) throw new Error("choose a Scoreholio player first"); const { error } = await sb.from("players").update({ scoreholio_player_id: v }).eq("id", id); if (error) throw error; toast("Season stats linked."); }
+      if (act === "pl-unlink") { const { error } = await sb.from("players").update({ scoreholio_player_id: null }).eq("id", id); if (error) throw error; toast("Unlinked."); }
       if (act === "season-save") { await saveSeason(id); toast(`Event ${id} saved. It's live on the home page.`); }
       if (act === "sp-add") { await addSeasonSponsor(id); toast("Sponsor added."); }
       if (act === "sp-del") { const { error } = await sb.from("season_sponsors").delete().eq("id", id); if (error) throw error; toast("Sponsor removed."); }

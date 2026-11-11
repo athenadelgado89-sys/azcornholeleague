@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202611111312">
+<link rel="stylesheet" href="styles.css?v=202611111333">
 </head>
 <body>
 <header class="top">
@@ -26,6 +26,7 @@
       <a href="#clubs" data-nav="clubs">Clubs</a>
       <a href="#vendors" data-nav="vendors">Vendors</a>
       <a href="#events" data-nav="events">AZ Events</a>
+      <a href="#players" data-nav="players">Players</a>
     </nav>
     <button class="btn btn-primary btn-sm" type="button" data-open="event">Post Event Here</button>
   </div>
@@ -120,7 +121,7 @@
         <div class="soon-row">
           <div class="soon-item"><b>AZ Points Standings</b>Statewide rankings by division from the State Region Events.</div>
           <div class="soon-item"><b>Arizona Player Passport</b>Badges for events played and new clubs visited.</div>
-          <div class="soon-item"><b>Player Profiles</b>Results, points and club visits for every player.</div>
+          <a class="soon-item soon-live" href="#players"><b>Player Profiles · now open →</b>About, podium photos, sponsors and results for Arizona players.</a>
         </div>
       </div>
       <div style="height:56px"></div>
@@ -166,6 +167,29 @@
     </div>
   </section>
 
+  <!-- PLAYERS -->
+  <section data-view="players" hidden>
+    <div class="wrap page">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Arizona players</span>
+          <h1>Player Profiles</h1>
+          <p>Meet Arizona's cornhole players: their clubs, sponsors, podium moments and results.</p>
+        </div>
+        <a class="btn btn-primary" href="player.html">Create your profile</a>
+      </div>
+      <div class="toolbar">
+        <input id="player-search" type="search" placeholder="Search by name, city or club" aria-label="Search players">
+      </div>
+      <div class="clubs" id="player-grid"></div>
+    </div>
+  </section>
+
+  <!-- PLAYER PAGE -->
+  <section data-view="player" hidden>
+    <div class="wrap page" id="player-page"></div>
+  </section>
+
   <!-- CLUB PAGE -->
   <section data-view="club" hidden>
     <div class="wrap page" id="club-page"></div>
@@ -197,7 +221,7 @@
 
 <footer>
   <div class="wrap">
-    <span>© <span id="year">2026</span> Arizona Cornhole League · <a href="manage.html">Club login</a> · <a href="admin.html">Admin</a></span>
+    <span>© <span id="year">2026</span> Arizona Cornhole League · <a href="player.html">Player login</a> · <a href="manage.html">Club login</a> · <a href="admin.html">Admin</a></span>
     <span>Regulation play: 2 × 4 ft boards, 27 ft front to front</span>
   </div>
 </footer>
@@ -394,8 +418,8 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111312"></script>
-<script src="common.js?v=202611111312"></script>
-<script src="app.js?v=202611111312"></script>
+<script src="config.js?v=202611111333"></script>
+<script src="common.js?v=202611111333"></script>
+<script src="app.js?v=202611111333"></script>
 </body>
 </html>

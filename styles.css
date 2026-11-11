@@ -328,3 +328,24 @@ a.sponsor:hover{border-color:var(--copper)}
 .theme-row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
 .swatch{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
 .swatch input[type=color]{width:38px;height:30px;border:1px solid var(--line);border-radius:6px;padding:2px;background:var(--surface);cursor:pointer}
+
+/* Players */
+a.soon-item{text-decoration:none;color:var(--muted)}
+.soon-live{border-style:solid!important;border-color:var(--copper)!important}
+.soon-live b{color:var(--copper)!important}
+.pl-photo{border-radius:50%!important}
+#player-grid .club-logo{border-radius:50%}
+.pl-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:16px}
+@media (max-width:760px){.pl-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pl-stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;display:grid;gap:2px}
+.pl-stat b{font-family:var(--display);font-size:30px;font-weight:900;color:var(--copper);font-variant-numeric:tabular-nums;line-height:1}
+.pl-stat span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pl-stats-src{grid-column:1/-1;margin:0}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table.results{width:100%;border-collapse:collapse;font-size:14px}
+table.results th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line)}
+table.results td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.results tr:last-child td{border-bottom:0}
+table.results td:first-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:900px){.cp-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){table.results td:first-child{white-space:normal;min-width:84px}}

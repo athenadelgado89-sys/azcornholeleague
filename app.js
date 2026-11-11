@@ -13,17 +13,21 @@
   $("#ev-date").min = todayStr();
 
   /* ---------- Routing ---------- */
-  const VIEWS = ["home", "clubs", "vendors", "events"];
+  const VIEWS = ["home", "clubs", "vendors", "events", "players"];
   function route() {
     const h = location.hash.slice(1);
     const clubMatch = h.match(/^club-([0-9a-f-]{36})$/i);
-    const v = clubMatch ? "club" : VIEWS.includes(h) ? h : "home";
+    const playerMatch = h.match(/^player-([0-9a-f-]{36})$/i);
+    const v = clubMatch ? "club" : playerMatch ? "player" : VIEWS.includes(h) ? h : "home";
     S.pageClub = clubMatch ? clubMatch[1] : null;
+    S.pagePlayer = playerMatch ? playerMatch[1] : null;
     document.querySelectorAll("[data-view]").forEach(s => (s.hidden = s.dataset.view !== v));
-    const navKey = v === "club" ? "clubs" : v;
+    const navKey = v === "club" ? "clubs" : v === "player" ? "players" : v;
     document.querySelectorAll("[data-nav]").forEach(a => (a.dataset.nav === navKey ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     window.scrollTo(0, 0);
     if (v === "club") renderClubPage(); else document.title = "Arizona Cornhole League";
+    if (v === "players") loadPlayers().then(renderPlayers);
+    if (v === "player") renderPlayerPage();
   }
   addEventListener("hashchange", route);
 
@@ -142,6 +146,97 @@
     box.innerHTML = list.map(eventCard).join("");
   }
 
+  /* ---------- Players ---------- */
+  let playersPromise = null;
+  function loadPlayers(force) {
+    if (!sb) return Promise.resolve([]);
+    if (!playersPromise || force) playersPromise = sb.from("players").select("id,display_name,city,home_club_id,photo_path,about,website,facebook,instagram,tiktok,youtube,scoreholio_player_id").eq("hidden", false).order("display_name")
+      .then(r => { S.players = r.error ? [] : r.data; S.playersReady = !r.error; return S.players; });
+    return playersPromise;
+  }
+  const playerPhoto = (p, cls = "club-logo") => p.photo_path
+    ? `<img class="${cls}" src="${esc(fileUrl(p.photo_path))}" alt="${esc(p.display_name)}" data-i="${esc(initials(p.display_name))}" loading="lazy">`
+    : `<span class="${cls}" aria-hidden="true">${esc(initials(p.display_name))}</span>`;
+  function renderPlayers() {
+    const grid = $("#player-grid"); if (!grid) return;
+    if (!S.players) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Loading players…</b></div>`; return; }
+    if (!S.playersReady) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Player profiles are coming soon</b>Check back shortly.</div>`; return; }
+    const q = (S.pq || "").trim().toLowerCase();
+    const list = S.players.filter(p => { const c = clubById(p.home_club_id); return !q || [p.display_name, p.city, c && c.name].some(x => (x || "").toLowerCase().includes(q)); });
+    if (!list.length) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>${q ? "No players match that search" : "No player profiles yet"}</b>${q ? "Try a different name, city or club." : `Be the first: <a href="player.html">create your profile</a>.`}</div>`; return; }
+    grid.innerHTML = list.map(p => {
+      const c = clubById(p.home_club_id);
+      return `<article class="club">
+        <div class="club-top">${playerPhoto(p)}<div style="min-width:0"><h3>${esc(p.display_name)}</h3><div class="city">${[p.city ? esc(p.city) + ", AZ" : "", c ? esc(c.name) : ""].filter(Boolean).join(" · ")}</div></div></div>
+        ${p.about ? `<p class="blurb">${esc(p.about.length > 120 ? p.about.slice(0, 117) + "…" : p.about)}</p>` : ""}
+        <div class="club-foot"><span class="chips">${socialIcons({ ...p, name: p.display_name })}</span><a class="btn btn-ghost btn-sm" href="#player-${esc(p.id)}">Profile →</a></div>
+      </article>`;
+    }).join("");
+  }
+  const normName = n => (n || "").toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+  const ordinal = n => n + (["th", "st", "nd", "rd"][(n % 100 - 20) % 10] || ["th", "st", "nd", "rd"][n % 100] || "th");
+  async function renderPlayerPage() {
+    const box = $("#player-page"); const id = S.pagePlayer; if (!id) return;
+    box.innerHTML = `<div class="empty"><b>Loading player…</b></div>`;
+    await loadPlayers();
+    const p = (S.players || []).find(x => x.id === id);
+    if (!p) { box.innerHTML = `<div class="empty"><b>Player not found</b><a href="#players">Browse all players</a></div>`; return; }
+    document.title = `${p.display_name} · Arizona Cornhole League`;
+    const [ph, sp, rs, st] = await Promise.all([
+      sb.from("player_photos").select("path,caption").eq("player_id", id).order("created_at", { ascending: false }),
+      sb.from("player_sponsors").select("name,url,logo_path").eq("player_id", id).order("created_at"),
+      sb.from("player_results").select("event_name,event_date,finish,division,partner").eq("player_id", id).order("event_date", { ascending: false }),
+      p.scoreholio_player_id
+        ? sb.from("season_player_stats").select("*").eq("scoreholio_player_id", p.scoreholio_player_id)
+        : sb.from("season_player_stats").select("*").ilike("player_name", p.display_name)
+    ]);
+    if (S.pagePlayer !== id) return;
+    const photos = ph.data || [], sponsors = sp.data || [], results = rs.data || [];
+    // Season stats: use the linked Scoreholio player, or a single exact name match
+    let stats = (st.data || []);
+    if (!p.scoreholio_player_id) {
+      const ids = [...new Set(stats.filter(r => normName(r.player_name) === normName(p.display_name)).map(r => r.scoreholio_player_id))];
+      stats = ids.length === 1 ? stats.filter(r => r.scoreholio_player_id === ids[0]) : [];
+    }
+    const overall = stats.filter(r => /^all$/i.test(r.division) || /overall/i.test(r.division));
+    const statRows = overall.length ? overall : stats;
+    const club = clubById(p.home_club_id);
+    const section = (title, html) => `<section class="cp-sec"><h2>${title}</h2>${html}</section>`;
+    box.innerHTML = `
+      <a class="back-link" href="#players">← All players</a>
+      <header class="cp-head">
+        ${playerPhoto(p, "cp-logo pl-photo")}
+        <div class="cp-id">
+          <span class="eyebrow">Arizona player</span>
+          <h1>${esc(p.display_name)}</h1>
+          <div class="city">${[p.city ? esc(p.city) + ", AZ" : "", club ? `Home club: <a class="club-link" href="#club-${esc(club.id)}">${esc(club.name)}</a>` : ""].filter(Boolean).join(" · ")}</div>
+          <div class="chips">${socialIcons({ ...p, name: p.display_name })}</div>
+        </div>
+      </header>
+      ${statRows.length ? `<div class="pl-stats">${statRows.slice(0, 1).map(r => `
+        <div class="pl-stat"><b>${r.played ?? 0}</b><span>Events played</span></div>
+        <div class="pl-stat"><b>${r.rank ? "#" + r.rank : "–"}</b><span>Season rank</span></div>
+        <div class="pl-stat"><b>${r.points != null ? Number(r.points).toLocaleString() : "–"}</b><span>Points</span></div>
+        <div class="pl-stat"><b>${r.first ?? 0}</b><span>Wins</span></div>
+        <div class="pl-stat"><b>${r.podium ?? 0}</b><span>Podiums</span></div>
+        <div class="pl-stat"><b>${r.best ? ordinal(r.best) : "–"}</b><span>Best finish</span></div>`).join("")}
+        <p class="via pl-stats-src">${esc(statRows[0].season_name || "AZCL season")} standings from Scoreholio</p></div>` : ""}
+      <div class="cp-grid">
+        <div class="cp-main">
+          ${p.about ? section("About me", `<p class="cp-about">${esc(p.about)}</p>`) : ""}
+          ${photos.length ? section("Podium photos", `<div class="cp-photos">${photos.map(x => `<button type="button" class="cp-photo" data-flyer="${esc(x.path)}" data-cap="${esc(x.caption || p.display_name)}" aria-label="View photo${x.caption ? ": " + esc(x.caption) : ""}"><img src="${esc(fileUrl(x.path))}" alt="${esc(x.caption || "")}" loading="lazy"></button>`).join("")}</div>`) : ""}
+          ${section("Results", results.length ? `<div class="table-wrap"><table class="results"><thead><tr><th>Date</th><th>Event</th><th>Finish</th><th>Division</th></tr></thead><tbody>${results.map(r => `<tr><td>${esc(window.AZCL.fmtDate(r.event_date))}</td><td>${esc(r.event_name)}${r.partner ? `<div class="muted" style="font-size:12px">with ${esc(r.partner)}</div>` : ""}</td><td><b>${esc(r.finish)}</b></td><td>${esc(r.division || "")}</td></tr>`).join("")}</tbody></table></div><p class="via">Results added by the player.</p>` : `<p class="muted">No results added yet.</p>`)}
+        </div>
+        <aside class="cp-side">
+          ${sponsors.length ? `<section class="cp-card"><span class="eyebrow">Sponsored by</span><div class="sponsors">${sponsors.map(x => {
+            const inner = x.logo_path ? `<img src="${esc(fileUrl(x.logo_path))}" alt="${esc(x.name)}">` : `<b>${esc(x.name)}</b>`;
+            return safeHref(x.url) ? `<a class="sponsor" href="${esc(x.url)}" target="_blank" rel="noopener" title="${esc(x.name)}">${inner}</a>` : `<span class="sponsor" title="${esc(x.name)}">${inner}</span>`;
+          }).join("")}</div></section>` : ""}
+          <p class="muted cp-manage"><a href="player.html">Is this you? Edit your profile</a></p>
+        </aside>
+      </div>`;
+  }
+
   /* ---------- Club page ---------- */
   const extrasCache = {};
   async function loadClubExtras(id) {
@@ -222,6 +317,8 @@
     document.querySelectorAll(".db-note").forEach(n => (n.innerHTML = statusNote()));
     renderStats(); renderClubs(); renderVendors(); renderClubOptions(); renderEvents();
     if (S.pageClub) renderClubPage();
+    if (S.pagePlayer) renderPlayerPage();
+    if (S.players) renderPlayers();
   }
 
   /* ---------- Loading ---------- */
@@ -329,6 +426,7 @@
     else if (t.dataset.when) { S.when = t.dataset.when; syncSeg(); renderEvents(); }
   });
   function syncSeg() { document.querySelectorAll("[data-when]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.when === S.when))); }
+  $("#player-search").addEventListener("input", e => { S.pq = e.target.value; renderPlayers(); });
   $("#club-search").addEventListener("input", e => { S.q = e.target.value; renderClubs(); });
   $("#vendor-search").addEventListener("input", e => { S.vq = e.target.value; renderVendors(); });
   $("#vendor-cat-filter").addEventListener("change", e => { S.vcat = e.target.value; renderVendors(); });

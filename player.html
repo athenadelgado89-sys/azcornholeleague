@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Player Login · Arizona Cornhole League</title>
+<link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css?v=202611111333">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./" aria-label="Back to the AZCL website">
+      <img class="brand-mark" src="assets/mark.png" alt="" width="54" height="44">
+      <span><b>AZCL</b><small>Player login</small></span>
+    </a>
+    <a class="btn btn-ghost btn-sm" href="./#players" style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">All players</a>
+    <button class="btn btn-ghost btn-sm" type="button" id="signout" hidden style="color:var(--band-ink);border-color:rgba(255,255,255,.25)">Sign out</button>
+  </div>
+</header>
+
+<main class="wrap page">
+  <section id="auth" hidden>
+    <div class="admin-login">
+      <h1>Player login</h1>
+      <p style="color:var(--muted);margin:0">Create your free AZCL player profile: About Me, podium photos, sponsors, socials and results.</p>
+      <div class="tabs" role="group" aria-label="Account" style="margin:16px 0 0">
+        <button type="button" data-mode="signup" aria-pressed="true">Create account</button>
+        <button type="button" data-mode="signin" aria-pressed="false">Sign in</button>
+        <button type="button" data-mode="reset" aria-pressed="false">Forgot password</button>
+      </div>
+      <form id="auth-form" novalidate>
+        <div class="fld"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="username" required></div>
+        <div class="fld" id="pass-wrap"><label for="auth-pass">Password</label><input id="auth-pass" type="password" autocomplete="new-password" minlength="8" required><span class="hint" id="pass-hint">At least 8 characters.</span></div>
+        <div class="form-foot"><span class="err" id="auth-err" role="alert"></span><button class="btn btn-primary" type="submit" id="auth-btn">Create account</button></div>
+      </form>
+      <p class="review-note" id="auth-msg" hidden></p>
+    </div>
+  </section>
+
+  <section id="newpass" hidden>
+    <div class="admin-login">
+      <h1>New password</h1>
+      <form id="newpass-form" novalidate>
+        <div class="fld"><label for="np-pass">New password</label><input id="np-pass" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="form-foot"><span class="err" id="np-err" role="alert"></span><button class="btn btn-primary" type="submit">Save password</button></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="editor" hidden>
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">Your player profile</span>
+        <h1 id="ed-title">Create your profile</h1>
+        <p id="ed-sub">Fill in the basics and save. Your profile goes live on the Players page right away.</p>
+      </div>
+      <a class="btn btn-ghost" id="ed-view" href="./#players" hidden>View my profile</a>
+    </div>
+
+    <form id="profile-form" class="ed-form" novalidate>
+      <div class="ed-card">
+        <h2>About you</h2>
+        <div class="row2">
+          <div class="fld"><label for="pf-name">Name <span class="req">*</span> <span class="hint">As it appears on Scoreholio, so your season stats can match</span></label><input id="pf-name" maxlength="80" required autocomplete="name"></div>
+          <div class="fld"><label for="pf-city">City</label><input id="pf-city" maxlength="60" placeholder="e.g. Mesa"></div>
+        </div>
+        <div class="fld"><label for="pf-club">Home club</label><select id="pf-club"><option value="">No home club</option></select></div>
+        <div class="fld"><label for="pf-about">About me <span class="hint">How you got into cornhole, favorite events, goals</span></label><textarea id="pf-about" maxlength="1500" rows="5"></textarea></div>
+        <div class="fld"><label for="pf-photo">Profile photo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label><div class="preview-logo" id="pf-photo-current" hidden></div><input id="pf-photo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+      </div>
+      <div class="ed-card">
+        <h2>Socials</h2>
+        <div class="row2">
+          <div class="fld"><label for="pf-facebook">Facebook</label><input id="pf-facebook" type="url"></div>
+          <div class="fld"><label for="pf-instagram">Instagram</label><input id="pf-instagram" type="url"></div>
+        </div>
+        <div class="row2">
+          <div class="fld"><label for="pf-tiktok">TikTok</label><input id="pf-tiktok" type="url"></div>
+          <div class="fld"><label for="pf-youtube">YouTube</label><input id="pf-youtube" type="url"></div>
+        </div>
+        <div class="fld"><label for="pf-website">Website</label><input id="pf-website" type="url"></div>
+      </div>
+      <div class="ed-save">
+        <span class="err" id="pf-err" role="alert"></span>
+        <button class="btn btn-primary" type="submit" id="pf-save">Save profile</button>
+      </div>
+    </form>
+
+    <div id="extras" hidden>
+      <div class="ed-card">
+        <h2>Results</h2>
+        <p class="muted" style="margin-top:0">Add your finishes from any event. Season stats from AZCL's Scoreholio season are added to your profile automatically.</p>
+        <div class="row2">
+          <div class="fld"><label for="rs-event">Event <span class="req">*</span></label><input id="rs-event" maxlength="120" placeholder="e.g. Wild West Shoot Out"></div>
+          <div class="fld"><label for="rs-date">Date <span class="req">*</span></label><input id="rs-date" type="date"></div>
+        </div>
+        <div class="row2">
+          <div class="fld"><label for="rs-finish">Finish <span class="req">*</span></label><input id="rs-finish" maxlength="30" placeholder="e.g. 1st, 3rd, Top 8"></div>
+          <div class="fld"><label for="rs-division">Division</label><input id="rs-division" maxlength="60" placeholder="e.g. Open Doubles"></div>
+        </div>
+        <div class="fld"><label for="rs-partner">Partner</label><input id="rs-partner" maxlength="80" placeholder="For doubles"></div>
+        <div class="form-foot"><span class="err" id="rs-err" role="alert"></span><button class="btn btn-primary btn-sm" type="button" id="rs-add">Add result</button></div>
+        <div id="rs-list"></div>
+      </div>
+
+      <div class="ed-card">
+        <h2>Podium photos</h2>
+        <p class="muted" style="margin-top:0">Up to 10 photos, 5 MB each.</p>
+        <div class="row2">
+          <div class="fld"><label for="ph-files">Choose photos</label><input id="ph-files" type="file" accept="image/png,image/jpeg,image/webp" multiple></div>
+          <div class="fld"><label for="ph-caption">Caption <span class="hint">Optional, used for all photos in this upload</span></label><input id="ph-caption" maxlength="140"></div>
+        </div>
+        <div class="form-foot"><span class="err" id="ph-err" role="alert"></span><button class="btn btn-primary btn-sm" type="button" id="ph-add">Upload photos</button></div>
+        <div class="ed-photos" id="ph-list"></div>
+      </div>
+
+      <div class="ed-card">
+        <h2>Sponsors</h2>
+        <div class="row2">
+          <div class="fld"><label for="sp-name">Sponsor name</label><input id="sp-name" maxlength="80"></div>
+          <div class="fld"><label for="sp-url">Sponsor website</label><input id="sp-url" type="url" placeholder="https://"></div>
+        </div>
+        <div class="fld"><label for="sp-logo">Sponsor logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label><input id="sp-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+        <div class="form-foot"><span class="err" id="sp-err" role="alert"></span><button class="btn btn-primary btn-sm" type="button" id="sp-add">Add sponsor</button></div>
+        <div id="sp-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="note"></div>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
+<script src="config.js?v=202611111333"></script>
+<script src="common.js?v=202611111333"></script>
+<script src="player.js?v=202611111333"></script>
+</body>
+</html>

@@ -17,6 +17,8 @@ const AZ_BBOX = "-114.82,31.33,-109.04,37.01"; // minLng,minLat,maxLng,maxLat
 const DAYS_AHEAD = 180;
 
 const { SCOREHOLIO_API_KEY, SUPABASE_URL, SUPABASE_SECRET_KEY } = process.env;
+// Comma-separated Scoreholio season ids for AZCL's own seasons (repository variable SCOREHOLIO_SEASON_IDS)
+const SEASON_IDS = (process.env.SCOREHOLIO_SEASON_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
 const fetchImpl = globalThis.__mockFetch || fetch;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -177,7 +179,42 @@ export async function main() {
     if (drop) { await db("DELETE", `events?id=eq.${e.id}`, undefined, "return=minimal"); removed++; }
   }
 
+  await syncSeasonStats();
   console.log(`Organizers seen: ${orgRows.length}. Linked clubs: ${clubs.length}. Events added: ${inserts.length}, updated: ${updated}, removed: ${removed}.`);
+}
+
+/* ---------------- Season player stats (for player profiles) ---------------- */
+async function syncSeasonStats() {
+  if (!SEASON_IDS.length) { console.log("No SCOREHOLIO_SEASON_IDS set; skipping season player stats."); return; }
+  for (const seasonId of SEASON_IDS) {
+    const runStart = new Date().toISOString();
+    const season = await sh(`/v1/seasons/${encodeURIComponent(seasonId)}`, {}, { allow404: true });
+    if (!season) { console.log(`Season ${seasonId} not found or not visible to this key.`); continue; }
+    const rows = [];
+    let cursor = null;
+    do {
+      const page = await sh(`/v1/seasons/${encodeURIComponent(seasonId)}/rankings/players`, { limit: 5000, cursor }, { allow404: true });
+      if (!page) break;               // rankings not public for this season
+      for (const r of page.data) {
+        if (!r.player?.id) continue;
+        rows.push({
+          season_id: seasonId, season_name: season.name || null,
+          division: r.division?.id === "all" ? "all" : (r.division?.name || r.division?.id || "all"),
+          scoreholio_player_id: r.player.id, player_name: r.player.name, club_name: r.player.clubName || null,
+          rank: r.rank ?? null, points: r.points ?? null, played: r.tournaments?.played ?? null,
+          first: r.finishes?.first ?? null, second: r.finishes?.second ?? null, third: r.finishes?.third ?? null,
+          podium: r.finishes?.podium ?? null, best: Number.isFinite(r.finishes?.best) ? Math.round(r.finishes.best) : null,
+          updated_at: runStart
+        });
+      }
+      cursor = page.nextCursor;
+    } while (cursor);
+    for (let i = 0; i < rows.length; i += 500) {
+      await db("POST", "season_player_stats?on_conflict=season_id,division,scoreholio_player_id", rows.slice(i, i + 500), "resolution=merge-duplicates,return=minimal");
+    }
+    await db("DELETE", `season_player_stats?season_id=eq.${encodeURIComponent(seasonId)}&updated_at=lt.${encodeURIComponent(runStart)}`, undefined, "return=minimal");
+    console.log(`Season "${season.name || seasonId}": ${rows.length} player ranking rows.`);
+  }
 }
 
 if (!globalThis.__mockFetch) {

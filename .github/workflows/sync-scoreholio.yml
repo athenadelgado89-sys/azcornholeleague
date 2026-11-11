@@ -27,3 +27,4 @@ jobs:
           SCOREHOLIO_API_KEY: ${{ secrets.SCOREHOLIO_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SCOREHOLIO_SEASON_IDS: ${{ vars.SCOREHOLIO_SEASON_IDS }}
