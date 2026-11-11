@@ -256,11 +256,16 @@
       const sp = sponsors.filter(x => x.slot === e.slot);
       const where = [e.venue, e.city ? e.city + ", AZ" : ""].filter(Boolean).join(" · ");
       const logo = e.logo_path ? `<img src="${esc(fileUrl(e.logo_path))}" alt="${esc(e.title || "")}">` : `<span class="sre-logo-text">${esc(e.title || "")}</span>`;
-      return `<article class="sre-feature">
+      const hex = v => /^#[0-9a-f]{6}$/i.test(v || "") ? v : null;
+      const vars = [["--sre-bg", e.theme_bg], ["--sre-ink", e.theme_text], ["--sre-accent", e.theme_accent], ["--sre-hl", e.theme_highlight]].filter(([, v]) => hex(v)).map(([k, v]) => `${k}:${v}`).join(";");
+      // Two-tone title like the event's own branding: second half of the words in the accent color
+      const words = (e.title || "To be announced").split(/\s+/), cut = Math.ceil(words.length / 2);
+      const title = words.length > 1 && hex(e.theme_accent) ? `${esc(words.slice(0, cut).join(" "))} <span class="t2">${esc(words.slice(cut).join(" "))}</span>` : esc(words.join(" "));
+      return `<article class="sre-feature${e.theme_font === "bebas" ? " font-bebas" : ""}"${vars ? ` style="${vars}"` : ""}>
         ${safeHref(e.details_url) ? `<a class="sre-logo" href="${esc(e.details_url)}" target="_blank" rel="noopener" aria-label="${esc(e.title)} event details">${logo}</a>` : `<div class="sre-logo">${logo}</div>`}
         <div class="sre-body">
           <span class="sre-num">State Region Event ${e.slot}</span>
-          <h3>${esc(e.title || "To be announced")}</h3>
+          <h3>${title}</h3>
           ${(e.dates_text || where) ? `<p class="sre-when">${e.dates_text ? `<b>${esc(e.dates_text)}</b>` : ""}${where ? `<span>${esc(where)}</span>` : ""}</p>` : ""}
           ${e.blurb ? `<p class="sre-blurb">${esc(e.blurb)}</p>` : ""}
           <div class="sre-actions">

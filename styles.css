@@ -311,3 +311,20 @@ a.sponsor:hover{border-color:var(--copper)}
 .sre-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 .season-ed h2{font-size:22px}
 .sp-add{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:10px;border-top:1px dashed var(--line)}
+
+/* State Region Event cards: per-event theme (colors set inline from the admin page) */
+.sre-feature{--sre-bg:var(--band);--sre-ink:var(--band-ink);--sre-accent:var(--copper);--sre-hl:var(--gold);background:var(--sre-bg);color:var(--sre-ink)}
+.sre-feature::after{background:repeating-linear-gradient(90deg,var(--sre-accent) 0 40px,var(--sre-hl) 40px 80px)}
+.sre-feature .sre-num,.sre-thanks .eyebrow{color:var(--sre-hl)}
+.sre-feature .sre-when span,.sre-feature .sre-blurb,.sre-thanks dt{color:color-mix(in srgb,var(--sre-ink) 72%,transparent)}
+.sre-feature .btn-primary{background:var(--sre-accent);color:#fff}
+.sre-feature .btn-ghost{color:var(--sre-ink);border-color:color-mix(in srgb,var(--sre-ink) 35%,transparent)}
+.sre-feature .btn-ghost:hover{background:color-mix(in srgb,var(--sre-ink) 8%,transparent)}
+.sre-feature .sre-thanks{background:color-mix(in srgb,var(--sre-ink) 6%,transparent);border-color:color-mix(in srgb,var(--sre-ink) 14%,transparent)}
+.sre-feature .sre-logo-text{color:var(--sre-hl)}
+.sre-feature .t2{color:var(--sre-accent)}
+.sre-feature.font-bebas h3{font-family:"Bebas Neue",var(--display);font-weight:400;letter-spacing:.02em;line-height:.95;font-size:clamp(40px,5vw,60px)}
+.sre-feature.font-bebas .sre-num,.sre-feature.font-bebas .sre-thanks .eyebrow{letter-spacing:.16em}
+.theme-row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.swatch{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.swatch input[type=color]{width:38px;height:30px;border:1px solid var(--line);border-radius:6px;padding:2px;background:var(--surface);cursor:pointer}

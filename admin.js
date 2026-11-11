@@ -257,6 +257,15 @@
           <div class="fld"><label for="s${id}-logo">Event logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
             ${e.logo_path ? `<div class="preview-logo"><img src="${esc(fileUrl(e.logo_path))}" alt="" style="width:auto;max-width:160px;background:var(--band)">Current logo. Choose a file to replace it.</div>` : ""}
             <input id="s${id}-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+          <fieldset>
+            <legend>Card colors</legend>
+            <label class="check"><input type="checkbox" id="s${id}-theme" ${e.theme_bg ? "checked" : ""}> Use this event's own colors (otherwise the AZCL navy, copper and gold)</label>
+            <div class="theme-row">
+              ${[["bg", "Background", e.theme_bg || "#13265C"], ["text", "Text", e.theme_text || "#F4F1E8"], ["accent", "Buttons and title", e.theme_accent || "#B4532A"], ["highlight", "Labels and stripe", e.theme_highlight || "#E3A33A"]]
+                .map(([k, l, v]) => `<label class="swatch"><input type="color" id="s${id}-c-${k}" value="${esc(v)}"> ${l}</label>`).join("")}
+              <label class="swatch">Headline font <select id="s${id}-font" class="mgr-input" style="width:auto"><option value="default" ${e.theme_font !== "bebas" ? "selected" : ""}>AZCL (Big Shoulders)</option><option value="bebas" ${e.theme_font === "bebas" ? "selected" : ""}>Bebas Neue</option></select></label>
+            </div>
+          </fieldset>
           <div class="event-actions"><button class="btn btn-primary btn-sm" data-act="season-save" data-id="${id}">Save event ${id}</button></div>
 
           <h3 style="font-family:var(--body);font-size:16px;font-weight:800;margin-top:6px">Partners and sponsors</h3>
@@ -284,6 +293,11 @@
       const u = window.AZCL.normUrl(v(k)); if (u === null) throw new Error(`the ${label} isn't a valid web address`); data[col] = u || null;
     }
     if (data.status === "set" && !data.title) throw new Error("add the event name before marking it confirmed");
+    if (A.season.some(x => "theme_font" in x)) {
+      const custom = document.getElementById(`s${slot}-theme`).checked;
+      for (const k of ["bg", "text", "accent", "highlight"]) data["theme_" + k] = custom ? document.getElementById(`s${slot}-c-${k}`).value : null;
+      data.theme_font = document.getElementById(`s${slot}-font`).value;
+    }
     const file = document.getElementById(`s${slot}-logo`).files[0];
     if (file) data.logo_path = await window.AZCL.upload("events", file);
     const { error } = await sb.from("season_events").update(data).eq("slot", slot);
