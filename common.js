@@ -45,8 +45,9 @@ window.AZCL = (() => {
 
   const VENDOR_CATS = ["Bags", "Boards", "Bags & Boards", "Apparel & Custom Design", "Events & Rentals", "Other"];
   const FORMATS = ["Singles", "Doubles", "Blind Draw / SWAP", "Other"];
+  const SPONSOR_ROLES = ["Title sponsor", "Presenting sponsor", "Venue", "Trophy sponsor", "Sponsor", "Vendor"];
 
-  return { cfg, configured, sb, $, esc, normUrl, safeHref, fileUrl, initials, parseDate, todayStr, fmtTime, fmtDate, uuid, toast, upload, VENDOR_CATS, FORMATS };
+  return { cfg, configured, sb, $, esc, normUrl, safeHref, fileUrl, initials, parseDate, todayStr, fmtTime, fmtDate, uuid, toast, upload, VENDOR_CATS, FORMATS, SPONSOR_ROLES };
 })();
 
 // Brand icons (Simple Icons, CC0) for social links on directory cards.

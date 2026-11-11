@@ -236,8 +236,56 @@
     const r = await sb.from("clubs").select(CLUB_BASE + ",about,event_types,booking_enabled,booking_email,potw_name,potw_blurb,potw_photo_path").eq("status", "approved").order("name");
     return r.error ? sb.from("clubs").select(CLUB_BASE).eq("status", "approved").order("name") : r;
   }
+  /* ---------- Season 1: State Region Events (from the admin page) ---------- */
+  function sponsorGroups(list) {
+    const { SPONSOR_ROLES } = window.AZCL;
+    return SPONSOR_ROLES.map(role => {
+      const items = list.filter(x => x.role === role);
+      if (!items.length) return "";
+      const label = items.length > 1 ? (role === "Sponsor" ? "Sponsors" : role.endsWith("sponsor") ? role + "s" : role + "s") : role;
+      return `<div><dt>${esc(label)}</dt><dd><ul class="sre-vendors">${items.map(x => {
+        const inner = `${x.logo_path ? `<img class="sre-sp-logo" src="${esc(fileUrl(x.logo_path))}" alt="" loading="lazy">` : ""}<span>${esc(x.name)}</span>`;
+        return `<li>${safeHref(x.url) ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${inner}</a>` : inner}</li>`;
+      }).join("")}</ul></dd></div>`;
+    }).join("");
+  }
+  function renderSeason(events, sponsors) {
+    const box = $("#sre"); if (!box || !events.length) return;
+    const set = events.filter(e => e.status === "set"), soon = events.filter(e => e.status !== "set");
+    const feature = e => {
+      const sp = sponsors.filter(x => x.slot === e.slot);
+      const where = [e.venue, e.city ? e.city + ", AZ" : ""].filter(Boolean).join(" · ");
+      const logo = e.logo_path ? `<img src="${esc(fileUrl(e.logo_path))}" alt="${esc(e.title || "")}">` : `<span class="sre-logo-text">${esc(e.title || "")}</span>`;
+      return `<article class="sre-feature">
+        ${safeHref(e.details_url) ? `<a class="sre-logo" href="${esc(e.details_url)}" target="_blank" rel="noopener" aria-label="${esc(e.title)} event details">${logo}</a>` : `<div class="sre-logo">${logo}</div>`}
+        <div class="sre-body">
+          <span class="sre-num">State Region Event ${e.slot}</span>
+          <h3>${esc(e.title || "To be announced")}</h3>
+          ${(e.dates_text || where) ? `<p class="sre-when">${e.dates_text ? `<b>${esc(e.dates_text)}</b>` : ""}${where ? `<span>${esc(where)}</span>` : ""}</p>` : ""}
+          ${e.blurb ? `<p class="sre-blurb">${esc(e.blurb)}</p>` : ""}
+          <div class="sre-actions">
+            ${safeHref(e.register_url) ? `<a class="btn btn-primary" href="${esc(e.register_url)}" target="_blank" rel="noopener">Register on Scoreholio ↗</a>` : ""}
+            ${safeHref(e.details_url) ? `<a class="btn btn-ghost" href="${esc(e.details_url)}" target="_blank" rel="noopener">Event details ↗</a>` : ""}
+          </div>
+        </div>
+        ${sp.length ? `<div class="sre-thanks"><span class="eyebrow">Thank you to our partners and sponsors</span><dl>${sponsorGroups(sp)}</dl></div>` : `<div></div>`}
+      </article>`;
+    };
+    box.innerHTML = `<h2 id="sre-title" class="sr-only">Season 1 State Region Events</h2>
+      ${set.map(feature).join("")}
+      ${soon.length ? `<div class="sre-grid">${soon.map(e => `<article class="sre-soon"><span class="sre-num">State Region Event ${e.slot}</span><b>Coming soon</b><button class="linkbtn" type="button" data-host="${e.slot}">Request to host →</button></article>`).join("")}</div>` : ""}`;
+  }
+  async function loadSeason() {
+    const [ev, sp] = await Promise.all([
+      sb.from("season_events").select("*").order("slot"),
+      sb.from("season_sponsors").select("*").order("created_at")
+    ]);
+    if (!ev.error && !sp.error) renderSeason(ev.data, sp.data); // otherwise keep the built-in version
+  }
+
   async function load() {
     if (!sb) { S.status = configured ? "error" : "unconfigured"; render(); return; }
+    loadSeason().catch(() => {});
     try {
       const [c, v, e] = await Promise.all([
         loadClubs(),

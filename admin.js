@@ -37,6 +37,8 @@
     A.clubs = c.data; A.vendors = v.data; A.events = e.data;
     const o = await sb.from("scoreholio_organizers").select("*").order("name");
     A.orgsReady = !o.error; A.orgs = o.data || [];
+    const [se, ss] = await Promise.all([sb.from("season_events").select("*").order("slot"), sb.from("season_sponsors").select("*").order("created_at")]);
+    A.seasonReady = !se.error && !ss.error; A.season = se.data || []; A.seasonSponsors = ss.data || [];
     const hr = await sb.from("host_requests").select("*").order("created_at", { ascending: false });
     A.hostsReady = !hr.error; A.hosts = hr.data || [];
     const mg = await sb.from("club_managers").select("club_id,email").order("email");
@@ -152,6 +154,8 @@
         (pe.length ? section(`Events (${pe.length})`, `<div class="queue">${pe.map(e => eventCard(e, true)).join("")}</div>`) : "") +
         (pc.length ? section(`Clubs (${pc.length})`, `<div class="queue">${pc.map(c => listingCard("club", c, CLUB_FIELDS)).join("")}</div>`) : "") +
         (pv.length ? section(`Vendors (${pv.length})`, `<div class="queue">${pv.map(v => listingCard("vendor", v, VENDOR_FIELDS)).join("")}</div>`) : "");
+    } else if (A.tab === "season") {
+      body.innerHTML = renderSeasonAdmin();
     } else if (A.tab === "hosts") {
       if (!A.hostsReady) { body.innerHTML = `<div class="notice">Host requests aren't set up yet. Run 04-host-requests.sql in Supabase first.</div>`; return; }
       body.innerHTML = A.hosts.length ? `<div class="queue">${A.hosts.map(h => {
@@ -229,6 +233,72 @@
       + `<p style="color:var(--muted);font-size:13px;margin-top:20px">New links take effect at the next hourly import. To import right away, open the GitHub repository → Actions → Sync Scoreholio events → Run workflow.</p>`;
   }
 
+  /* ---------- Season events ---------- */
+  function renderSeasonAdmin() {
+    if (!A.seasonReady) return `<div class="notice">Season events aren't set up yet. Run 05-season-events.sql in Supabase first.</div>`;
+    const roles = window.AZCL.SPONSOR_ROLES;
+    const f = (slot, key, label, attrs = "", val = "") => `<div class="fld"><label for="s${slot}-${key}">${label}</label><input id="s${slot}-${key}" value="${esc(val)}" ${attrs}></div>`;
+    return `<p style="color:var(--muted);margin-top:0;max-width:75ch">These are the State Region Event cards on the home page. Set an event to <b>Confirmed</b> to show its full card, or <b>Coming soon</b> to show a "Request to host" card. Changes appear on the site as soon as you save.</p>` +
+      A.season.map(e => {
+        const sp = A.seasonSponsors.filter(x => x.slot === e.slot).sort((a, b) => roles.indexOf(a.role) - roles.indexOf(b.role) || a.created_at.localeCompare(b.created_at));
+        const id = e.slot;
+        return `<article class="ed-card season-ed">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <h2>State Region Event ${id}${e.title ? ` · ${esc(e.title)}` : ""}</h2>
+            <select id="s${id}-status" aria-label="Status of event ${id}" class="mgr-input" style="width:auto">
+              <option value="soon" ${e.status !== "set" ? "selected" : ""}>Coming soon</option>
+              <option value="set" ${e.status === "set" ? "selected" : ""}>Confirmed</option>
+            </select>
+          </div>
+          <div class="row2">${f(id, "title", "Event name", 'maxlength="80"', e.title)}${f(id, "dates", "Dates", 'maxlength="80" placeholder="e.g. March 6–8, 2027"', e.dates_text)}</div>
+          <div class="row2">${f(id, "venue", "Venue", 'maxlength="120"', e.venue)}${f(id, "city", "City", 'maxlength="60"', e.city)}</div>
+          <div class="fld"><label for="s${id}-blurb">Short description</label><textarea id="s${id}-blurb" maxlength="500" rows="3">${esc(e.blurb || "")}</textarea></div>
+          <div class="row2">${f(id, "details", "Event website", 'type="url" placeholder="https://"', e.details_url)}${f(id, "register", "Scoreholio registration link", 'type="url" placeholder="https://"', e.register_url)}</div>
+          <div class="fld"><label for="s${id}-logo">Event logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
+            ${e.logo_path ? `<div class="preview-logo"><img src="${esc(fileUrl(e.logo_path))}" alt="" style="width:auto;max-width:160px;background:var(--band)">Current logo. Choose a file to replace it.</div>` : ""}
+            <input id="s${id}-logo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+          <div class="event-actions"><button class="btn btn-primary btn-sm" data-act="season-save" data-id="${id}">Save event ${id}</button></div>
+
+          <h3 style="font-family:var(--body);font-size:16px;font-weight:800;margin-top:6px">Partners and sponsors</h3>
+          ${sp.length ? sp.map(x => `<div class="live-row">
+            ${x.logo_path ? `<img class="thumb" src="${esc(fileUrl(x.logo_path))}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff">` : `<span class="thumb" style="width:44px;height:44px;font-size:14px">${esc(initials(x.name))}</span>`}
+            <div><b>${esc(x.name)}</b><span>${esc(x.role)}${x.url ? " · " + esc(x.url) : ""}</span></div>
+            ${A.confirm === "sp:" + x.id
+              ? `<button class="btn btn-sm btn-danger" data-act="sp-del" data-id="${x.id}">Remove</button><button class="linkbtn" data-act="cancel">Keep</button>`
+              : `<button class="linkbtn" data-act="sp-ask" data-id="${x.id}">Remove</button>`}
+          </div>`).join("") : `<p class="muted" style="margin:0">No sponsors yet.</p>`}
+          <div class="sp-add">
+            <select id="s${id}-sp-role" aria-label="Sponsor role" class="mgr-input" style="width:auto">${roles.map(r => `<option>${r}</option>`).join("")}</select>
+            <input id="s${id}-sp-name" class="mgr-input" maxlength="80" placeholder="Sponsor name" aria-label="Sponsor name">
+            <input id="s${id}-sp-url" class="mgr-input" type="url" placeholder="Website (optional)" aria-label="Sponsor website">
+            <input id="s${id}-sp-logo" type="file" accept="image/png,image/jpeg,image/webp" aria-label="Sponsor logo (optional)" style="font-size:13px;max-width:100%">
+            <button class="btn btn-ghost btn-sm" data-act="sp-add" data-id="${id}">Add sponsor</button>
+          </div>
+        </article>`;
+      }).join("");
+  }
+  async function saveSeason(slot) {
+    const v = k => (document.getElementById(`s${slot}-${k}`).value || "").trim();
+    const data = { status: v("status"), title: v("title") || null, dates_text: v("dates") || null, venue: v("venue") || null, city: v("city") || null, blurb: v("blurb") || null, updated_at: new Date().toISOString() };
+    for (const [k, col, label] of [["details", "details_url", "event website"], ["register", "register_url", "registration link"]]) {
+      const u = window.AZCL.normUrl(v(k)); if (u === null) throw new Error(`the ${label} isn't a valid web address`); data[col] = u || null;
+    }
+    if (data.status === "set" && !data.title) throw new Error("add the event name before marking it confirmed");
+    const file = document.getElementById(`s${slot}-logo`).files[0];
+    if (file) data.logo_path = await window.AZCL.upload("events", file);
+    const { error } = await sb.from("season_events").update(data).eq("slot", slot);
+    if (error) throw error;
+  }
+  async function addSeasonSponsor(slot) {
+    const v = k => (document.getElementById(`s${slot}-sp-${k}`).value || "").trim();
+    const name = v("name"); if (!name) throw new Error("add the sponsor's name");
+    const url = window.AZCL.normUrl(v("url")); if (url === null) throw new Error("the sponsor website isn't a valid web address");
+    const file = document.getElementById(`s${slot}-sp-logo`).files[0];
+    const logo_path = file ? await window.AZCL.upload("sponsors", file) : null;
+    const { error } = await sb.from("season_sponsors").insert({ slot: Number(slot), role: v("role"), name, url: url || null, logo_path });
+    if (error) throw error;
+  }
+
   /* ---------- Actions ---------- */
   const table = type => ({ club: "clubs", vendor: "vendors", event: "events" }[type]);
   const STRIP = ["id", "status", "replaces", "created_at", "updated_at"];
@@ -261,6 +331,7 @@
     if (act === "reject") { A.confirm = "reject:" + id; render(); return; }
     if (act === "remove") { A.confirm = "remove:" + id; render(); return; }
     if (act === "host-ask") { A.confirm = "host:" + id; render(); return; }
+    if (act === "sp-ask") { A.confirm = "sp:" + id; render(); return; }
     A.busy = true; b.disabled = true;
     try {
       if (act === "approve") { await approve(type, id); toast("Approved. It's live on the site."); }
@@ -272,6 +343,9 @@
         await sb.from("scoreholio_organizers").update({ ignored: false }).eq("id", id);
         toast("Linked. Their tournaments arrive at the next hourly import.");
       }
+      if (act === "season-save") { await saveSeason(id); toast(`Event ${id} saved. It's live on the home page.`); }
+      if (act === "sp-add") { await addSeasonSponsor(id); toast("Sponsor added."); }
+      if (act === "sp-del") { const { error } = await sb.from("season_sponsors").delete().eq("id", id); if (error) throw error; toast("Sponsor removed."); }
       if (act === "host-toggle") { const { error } = await sb.from("host_requests").update({ handled: b.dataset.handled !== "true" }).eq("id", id); if (error) throw error; toast("Updated."); }
       if (act === "host-del") { const { error } = await sb.from("host_requests").delete().eq("id", id); if (error) throw error; toast("Deleted."); }
       if (act === "mgr-add") {
