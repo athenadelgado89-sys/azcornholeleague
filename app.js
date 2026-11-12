@@ -13,12 +13,15 @@
   $("#ev-date").min = todayStr();
 
   /* ---------- Routing ---------- */
-  const VIEWS = ["home", "clubs", "vendors", "events", "players"];
+  const VIEWS = ["home", "clubs", "vendors", "events", "players", "contact"];
   function route() {
     const h = location.hash.slice(1);
+    document.querySelectorAll("dialog[open]").forEach(d => d.close());
     const clubMatch = h.match(/^club-([0-9a-f-]{36})$/i);
     const playerMatch = h.match(/^player-([0-9a-f-]{36})$/i);
-    const v = clubMatch ? "club" : playerMatch ? "player" : VIEWS.includes(h) ? h : "home";
+    const eventMatch = h.match(/^event-([0-9a-f-]{36})$/i);
+    S.pageEvent = eventMatch ? eventMatch[1] : null;
+    const v = clubMatch ? "club" : playerMatch ? "player" : eventMatch ? "events" : VIEWS.includes(h) ? h : "home";
     S.pageClub = clubMatch ? clubMatch[1] : null;
     S.pagePlayer = playerMatch ? playerMatch[1] : null;
     document.querySelectorAll("[data-view]").forEach(s => (s.hidden = s.dataset.view !== v));
@@ -28,6 +31,7 @@
     if (v === "club") renderClubPage(); else document.title = "Arizona Cornhole League";
     if (v === "players") loadPlayers().then(renderPlayers);
     if (v === "player") renderPlayerPage();
+    if (S.pageEvent && S.loaded) focusEvent();
   }
   addEventListener("hashchange", route);
 
@@ -120,13 +124,13 @@
         : `<button type="button" class="flyer" data-flyer="${esc(e.flyer_path)}" data-cap="${esc(e.title)}" aria-label="View flyer for ${esc(e.title)}" style="background:url('${esc(fileUrl(e.flyer_path))}') center/cover var(--sunk)"></button>`;
     }
     const showReg = Number.isInteger(e.registered_teams) && (e.registered_teams > 0 || e.max_teams);
-    return `<article class="event">
+    return `<article class="event" id="event-${esc(e.id)}">
       <div class="date"><div class="m">${d ? d.toLocaleString("en-US", { month: "short" }) : ""}</div><div class="d">${d ? d.getDate() : "?"}</div><div class="w">${d ? d.toLocaleString("en-US", { weekday: "short" }) : ""}</div></div>
       <div style="min-width:0">
         <h3>${esc(e.title)}</h3>
         <div class="meta"><span><b>${club ? `<a href="#club-${esc(club.id)}" class="club-link">${esc(club.name)}</a>` : "AZ club"}</b></span>${e.start_time ? `<span>${fmtTime(e.start_time)}</span>` : ""}<span>${esc(e.location)}</span>${e.format ? `<span class="tag">${esc(e.format)}</span>` : ""}</div>
         ${(e.entry_fee || showReg) ? `<div class="meta">${e.entry_fee ? `<span>Entry <b>${esc(e.entry_fee)}</b></span>` : ""}${showReg ? `<span><b>${e.registered_teams}</b>${e.max_teams ? ` of ${e.max_teams}` : ""} registered</span>` : ""}</div>` : ""}
-        <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}${e.details ? `<button type="button" class="details-toggle" data-details="${esc(e.id)}" aria-expanded="${S.open.has(e.id)}" aria-controls="det-${esc(e.id)}">Details <span class="chev" aria-hidden="true">▾</span></button>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
+        <div class="event-actions">${sh ? `<a class="btn btn-primary btn-sm" href="${esc(sh)}" target="_blank" rel="noopener">Open in Scoreholio ↗</a>` : ""}<button type="button" class="btn btn-ghost btn-sm" data-cal="${esc(e.id)}">Add to calendar</button><button type="button" class="btn btn-ghost btn-sm" data-share="${esc(e.id)}">Share</button>${e.details ? `<button type="button" class="details-toggle" data-details="${esc(e.id)}" aria-expanded="${S.open.has(e.id)}" aria-controls="det-${esc(e.id)}">Details <span class="chev" aria-hidden="true">▾</span></button>` : ""}${e.source === "scoreholio" ? `<span class="via">Event info from Scoreholio</span>` : ""}</div>
         ${e.details ? `<p class="details" id="det-${esc(e.id)}" ${S.open.has(e.id) ? "" : "hidden"}>${esc(e.details)}</p>` : ""}
       </div>
       <div class="flyer-col">${flyer}</div>
@@ -357,6 +361,17 @@
     if (S.pageClub) renderClubPage();
     if (S.pagePlayer) renderPlayerPage();
     if (S.players) renderPlayers();
+    if (S.pageEvent && S.loaded) focusEvent();
+  }
+  // Shared event links (#event-<id>): show the event in the list, open its details and highlight it
+  function focusEvent() {
+    const id = S.pageEvent, ev = S.events.find(x => x.id === id);
+    if (!ev) return;
+    S.pageEvent = null; S.clubFilter = ""; S.when = ev.event_date >= todayStr() ? "upcoming" : "past"; syncSeg();
+    if (ev.details) S.open.add(id);
+    renderClubOptions(); renderEvents();
+    const el = document.getElementById("event-" + id);
+    if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("event-hl"); setTimeout(() => el.classList.remove("event-hl"), 2500); }
   }
 
   /* ---------- Loading ---------- */
@@ -676,6 +691,109 @@
       toast("Thanks! Your event will appear once AZCL approves it.");
     } catch (x) { err.textContent = "Couldn't submit: " + friendly(x); }
     finally { btn.disabled = false; btn.textContent = "Submit event"; }
+  });
+
+  /* ---------- Add to calendar and Share ---------- */
+  const SITE = "https://azcornholeleague.com/";
+  const eventUrl = e => `${SITE}#event-${e.id}`;
+  const pad = n => String(n).padStart(2, "0");
+  const utcStamp = d => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  function eventTimes(e) {
+    // Events are in Arizona time (UTC-7 all year). Without a start time, use an all-day entry.
+    if (e.start_time) {
+      const start = new Date(`${e.event_date}T${e.start_time.slice(0, 5)}:00-07:00`);
+      return { allDay: false, start, end: new Date(start.getTime() + 4 * 36e5) };
+    }
+    const d = e.event_date.replace(/-/g, ""), next = new Date(`${e.event_date}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + 1);
+    return { allDay: true, startDate: d, endDate: next.toISOString().slice(0, 10).replace(/-/g, "") };
+  }
+  function eventText(e) {
+    const club = clubById(e.club_id);
+    return [club ? `Hosted by ${club.name}` : "", e.format ? `Format: ${e.format}` : "", e.entry_fee ? `Entry: ${e.entry_fee}` : "", e.scoreholio ? `Register: ${e.scoreholio}` : "", `More: ${eventUrl(e)}`, e.details ? "\n" + e.details : ""].filter(Boolean).join("\n");
+  }
+  function googleCalUrl(e) {
+    const t = eventTimes(e);
+    const dates = t.allDay ? `${t.startDate}/${t.endDate}` : `${utcStamp(t.start)}/${utcStamp(t.end)}`;
+    const q = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates, details: eventText(e).slice(0, 1500), location: e.location || "", ctz: "America/Phoenix" });
+    return "https://calendar.google.com/calendar/render?" + q.toString();
+  }
+  function icsFile(e) {
+    const t = eventTimes(e);
+    const escI = v => String(v || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Arizona Cornhole League//azcornholeleague.com//EN", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
+      `UID:${e.id}@azcornholeleague.com`, `DTSTAMP:${utcStamp(new Date())}`,
+      t.allDay ? `DTSTART;VALUE=DATE:${t.startDate}` : `DTSTART:${utcStamp(t.start)}`,
+      t.allDay ? `DTEND;VALUE=DATE:${t.endDate}` : `DTEND:${utcStamp(t.end)}`,
+      `SUMMARY:${escI(e.title)}`, `LOCATION:${escI(e.location)}`, `DESCRIPTION:${escI(eventText(e))}`, `URL:${eventUrl(e)}`,
+      "END:VEVENT", "END:VCALENDAR"];
+    const fold = l => { const out = []; while (l.length > 74) { out.push(l.slice(0, 74)); l = " " + l.slice(74); } out.push(l); return out.join("\r\n"); };
+    return new Blob([lines.map(fold).join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  }
+  function openSheet(title, sub, html) {
+    $("#sheet-title").textContent = title; $("#sheet-sub").textContent = sub; $("#sheet-body").innerHTML = html; openDlg("dlg-sheet");
+  }
+  function showCalendar(e) {
+    const t = eventTimes(e);
+    const when = `${window.AZCL.fmtDate(e.event_date)}${t.allDay ? "" : " · " + fmtTime(e.start_time)}`;
+    openSheet("Add to calendar", `${e.title} · ${when}`, `
+      <a class="sheet-opt" href="${esc(googleCalUrl(e))}" target="_blank" rel="noopener"><b>Google Calendar</b><span>Opens Google Calendar with the event filled in</span></a>
+      <button type="button" class="sheet-opt" data-ics="${esc(e.id)}"><b>Apple Calendar or Outlook</b><span>Downloads a calendar file your phone or computer opens</span></button>
+      ${t.allDay ? "" : `<p class="via" style="margin:0">Added for 4 hours starting at ${fmtTime(e.start_time)}. Adjust it in your calendar if needed.</p>`}`);
+  }
+  async function showShare(e) {
+    const url = eventUrl(e), text = `${e.title} · ${window.AZCL.fmtDate(e.event_date)}${e.start_time ? " " + fmtTime(e.start_time) : ""} · ${e.location}`;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ title: e.title, text, url }); return; } catch (x) { if (x && x.name === "AbortError") return; }
+    }
+    openSheet("Share this event", e.title, `
+      <div class="sheet-copy"><input id="share-url" value="${esc(url)}" readonly aria-label="Event link"><button type="button" class="btn btn-primary btn-sm" id="share-copy">Copy link</button></div>
+      <a class="sheet-opt" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener"><b>Facebook</b><span>Post it to your timeline or a group</span></a>
+      <a class="sheet-opt" href="sms:?&body=${encodeURIComponent(text + " " + url)}"><b>Text message</b><span>Send it from your phone</span></a>
+      <a class="sheet-opt" href="mailto:?subject=${encodeURIComponent(e.title)}&body=${encodeURIComponent(text + "\n\n" + url)}"><b>Email</b><span>Opens your email app</span></a>`);
+    $("#share-copy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(url); toast("Link copied."); }
+      catch { const i = $("#share-url"); i.focus(); i.select(); toast("Press Copy to copy the link."); }
+    });
+  }
+  document.addEventListener("click", e => {
+    const c = e.target.closest("[data-cal]"), sh = e.target.closest("[data-share]"), ics = e.target.closest("[data-ics]");
+    if (!c && !sh && !ics) return;
+    const id = (c || sh || ics).dataset.cal || (c || sh || ics).dataset.share || (c || sh || ics).dataset.ics;
+    const ev = S.events.find(x => x.id === id); if (!ev) return;
+    if (c) showCalendar(ev);
+    else if (sh) showShare(ev);
+    else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(icsFile(ev));
+      a.download = (ev.title || "event").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) + ".ics";
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      closeDlg($("#dlg-sheet"));
+    }
+  });
+
+  /* ---------- AZCL socials and contact form ---------- */
+  const AZCL_SOCIALS = { facebook: "https://www.facebook.com/ArizonaCornholeLeague", instagram: "https://www.instagram.com/arizonacornholeleague/", name: "Arizona Cornhole League" };
+  document.querySelectorAll("[data-azcl-socials]").forEach(el => (el.innerHTML = socialIcons(AZCL_SOCIALS)));
+  const ORG_LABELS = { "Add my club to the directory": "Club name", "Become a sponsor": "Business name", "Hire a director": "Event or organization", "Find a league": "", "Other": "Club or business" };
+  $("#ct-topic").addEventListener("change", e => {
+    const l = ORG_LABELS[e.target.value]; $("#ct-org-wrap").hidden = l === ""; if (l) $("#ct-org-label").textContent = l;
+  });
+  $("#contact-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err = $("#ct-err"), btn = $("#ct-send"); err.textContent = ""; $("#ct-done").hidden = true;
+    if ($("#ct-hp").value) return;
+    const v = k => $("#ct-" + k).value.trim();
+    if (!v("topic")) { err.textContent = "Choose a topic."; return; }
+    if (!v("name") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v("email"))) { err.textContent = "Add your name and a valid email so we can reply."; return; }
+    if (!v("message")) { err.textContent = "Add a message."; return; }
+    if (!sb) { err.textContent = `The form isn't available right now. Email arizonacornholeleague@gmail.com instead.`; return; }
+    btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const { error } = await sb.from("contact_messages").insert({ topic: v("topic"), name: v("name"), email: v("email"), phone: v("phone") || null, city: v("city") || null, organization: $("#ct-org-wrap").hidden ? null : (v("org") || null), message: v("message") });
+      if (error) throw error;
+      $("#contact-form").reset(); $("#ct-org-wrap").hidden = false; $("#ct-done").hidden = false;
+      toast("Message sent. Thank you!");
+    } catch (x) { err.textContent = "Couldn't send. Please email arizonacornholeleague@gmail.com instead."; }
+    finally { btn.disabled = false; btn.textContent = "Send message"; }
   });
 
   /* ---------- Get the app (installable web app) ---------- */

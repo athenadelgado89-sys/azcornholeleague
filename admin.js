@@ -41,6 +41,8 @@
     A.seasonReady = !se.error && !ss.error; A.season = se.data || []; A.seasonSponsors = ss.data || [];
     const [pl, pst] = await Promise.all([sb.from("players").select("*").order("display_name"), sb.from("season_player_stats").select("scoreholio_player_id,player_name,club_name,season_name,division,played").eq("division", "all")]);
     A.playersReady = !pl.error; A.players = pl.data || []; A.stats = pst.data || [];
+    const cm = await sb.from("contact_messages").select("*").order("created_at", { ascending: false });
+    A.msgsReady = !cm.error; A.msgs = cm.data || [];
     const hr = await sb.from("host_requests").select("*").order("created_at", { ascending: false });
     A.hostsReady = !hr.error; A.hosts = hr.data || [];
     const mg = await sb.from("club_managers").select("club_id,email").order("email");
@@ -145,6 +147,8 @@
     $("#count-pending").textContent = pc.length + pv.length + pe.length;
     const unlinked = A.orgs.filter(o => !o.ignored && !A.clubs.some(c => c.scoreholio_organizer_id === o.id));
     $("#count-sh").textContent = unlinked.length; $("#count-sh").hidden = !unlinked.length;
+    const newMsgs = (A.msgs || []).filter(m => !m.handled).length;
+    $("#count-msgs").textContent = newMsgs; $("#count-msgs").hidden = !newMsgs;
     const newHosts = (A.hosts || []).filter(h => !h.handled).length;
     $("#count-hosts").textContent = newHosts; $("#count-hosts").hidden = !newHosts;
     document.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tab === A.tab)));
@@ -160,6 +164,22 @@
       body.innerHTML = renderPlayersAdmin();
     } else if (A.tab === "season") {
       body.innerHTML = renderSeasonAdmin();
+    } else if (A.tab === "messages") {
+      if (!A.msgsReady) { body.innerHTML = `<div class="notice">The contact form isn't set up yet. Run 11-contact.sql in Supabase first.</div>`; return; }
+      body.innerHTML = A.msgs.length ? `<div class="queue">${A.msgs.map(m => `<article class="qitem" style="${m.handled ? "opacity:.65" : ""}">
+          <span class="thumb" style="font-size:16px">${esc(initials(m.name))}</span>
+          <div style="min-width:0">
+            ${m.handled ? `<span class="badge-new">Handled</span>` : `<span class="badge-upd">New</span>`} <span class="tag">${esc(m.topic)}</span>
+            <h3>${esc(m.name)}${m.organization ? ` · ${esc(m.organization)}` : ""}</h3>
+            <p style="white-space:pre-line;margin:8px 0 0;overflow-wrap:anywhere">${esc(m.message)}</p>
+            <div class="contact"><a href="mailto:${esc(m.email)}?subject=${encodeURIComponent("Re: " + m.topic + " (Arizona Cornhole League)")}" style="color:inherit"><b>${esc(m.email)}</b></a>${m.phone ? " · " + esc(m.phone) : ""}${m.city ? " · " + esc(m.city) : ""} · ${esc(new Date(m.created_at).toLocaleString("en-US", { timeZone: "America/Phoenix", dateStyle: "medium", timeStyle: "short" }))}</div>
+            <div class="event-actions">
+              <a class="btn btn-primary btn-sm" href="mailto:${esc(m.email)}?subject=${encodeURIComponent("Re: " + m.topic + " (Arizona Cornhole League)")}">Reply by email</a>
+              <button class="btn btn-ghost btn-sm" data-act="msg-toggle" data-id="${m.id}" data-handled="${m.handled}">${m.handled ? "Mark as new" : "Mark handled"}</button>
+              ${A.confirm === "msg:" + m.id ? `<button class="btn btn-sm btn-danger" data-act="msg-del" data-id="${m.id}">Confirm delete</button><button class="linkbtn" data-act="cancel">Keep</button>` : `<button class="linkbtn" data-act="msg-ask" data-id="${m.id}">Delete</button>`}
+            </div>
+          </div>
+        </article>`).join("")}</div>` : `<div class="empty"><b>No messages yet</b>Messages from the Contact page show up here.</div>`;
     } else if (A.tab === "hosts") {
       if (!A.hostsReady) { body.innerHTML = `<div class="notice">Host requests aren't set up yet. Run 04-host-requests.sql in Supabase first.</div>`; return; }
       body.innerHTML = A.hosts.length ? `<div class="queue">${A.hosts.map(h => {
@@ -420,6 +440,7 @@
     if (act === "remove") { A.confirm = "remove:" + id; render(); return; }
     if (act === "host-ask") { A.confirm = "host:" + id; render(); return; }
     if (act === "sp-ask") { A.confirm = "sp:" + id; render(); return; }
+    if (act === "msg-ask") { A.confirm = "msg:" + id; render(); return; }
     A.busy = true; b.disabled = true;
     try {
       if (act === "approve") { await approve(type, id); toast("Approved. It's live on the site."); }
@@ -438,6 +459,8 @@
       if (act === "sp-add") { await addSeasonSponsor(id); toast("Sponsor added."); }
       if (act === "sp-save") { await saveSeasonSponsor(id); toast("Sponsor updated."); }
       if (act === "sp-del") { const { error } = await sb.from("season_sponsors").delete().eq("id", id); if (error) throw error; toast("Sponsor removed."); }
+      if (act === "msg-toggle") { const { error } = await sb.from("contact_messages").update({ handled: b.dataset.handled !== "true" }).eq("id", id); if (error) throw error; toast("Updated."); }
+      if (act === "msg-del") { const { error } = await sb.from("contact_messages").delete().eq("id", id); if (error) throw error; toast("Deleted."); }
       if (act === "host-toggle") { const { error } = await sb.from("host_requests").update({ handled: b.dataset.handled !== "true" }).eq("id", id); if (error) throw error; toast("Updated."); }
       if (act === "host-del") { const { error } = await sb.from("host_requests").delete().eq("id", id); if (error) throw error; toast("Deleted."); }
       if (act === "mgr-add") {

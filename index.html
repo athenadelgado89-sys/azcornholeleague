@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202611111847">
+<link rel="stylesheet" href="styles.css?v=202611111911">
 </head>
 <body>
 <header class="top">
@@ -35,6 +35,7 @@
       <a href="#vendors" data-nav="vendors">Vendors</a>
       <a href="#events" data-nav="events">AZ Events</a>
       <a href="#players" data-nav="players">Players</a>
+      <a href="#contact" data-nav="contact">Contact</a>
     </nav>
     <div class="top-actions">
       <button class="btn btn-ghost btn-sm app-btn" type="button" data-get-app hidden>Get the app</button>
@@ -216,6 +217,56 @@
     <div class="wrap page" id="player-page"></div>
   </section>
 
+  <!-- CONTACT -->
+  <section data-view="contact" hidden>
+    <div class="wrap page">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Get in touch</span>
+          <h1>Contact AZCL</h1>
+          <p>Want your club in the directory, interested in sponsoring, looking for a league near you, or need a tournament director? Send us a message.</p>
+        </div>
+      </div>
+      <div class="contact-grid">
+        <form class="ed-card contact-form" id="contact-form" novalidate>
+          <div class="fld">
+            <label for="ct-topic">What can we help with? <span class="req">*</span></label>
+            <select id="ct-topic" required>
+              <option value="">Choose a topic</option>
+              <option>Add my club to the directory</option>
+              <option>Become a sponsor</option>
+              <option>Find a league</option>
+              <option>Hire a director</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="fld"><label for="ct-name">Your name <span class="req">*</span></label><input id="ct-name" maxlength="80" autocomplete="name" required></div>
+            <div class="fld"><label for="ct-email">Email <span class="req">*</span></label><input id="ct-email" type="email" maxlength="120" autocomplete="email" required></div>
+          </div>
+          <div class="row2">
+            <div class="fld"><label for="ct-phone">Phone</label><input id="ct-phone" type="tel" maxlength="30" autocomplete="tel"></div>
+            <div class="fld"><label for="ct-city">City</label><input id="ct-city" maxlength="60" placeholder="e.g. Tucson"></div>
+          </div>
+          <div class="fld" id="ct-org-wrap"><label for="ct-org" id="ct-org-label">Club or business</label><input id="ct-org" maxlength="120"></div>
+          <div class="fld"><label for="ct-message">Message <span class="req">*</span></label><textarea id="ct-message" maxlength="3000" rows="6" required></textarea></div>
+          <div class="hp" aria-hidden="true"><label for="ct-hp">Leave blank</label><input id="ct-hp" tabindex="-1" autocomplete="off"></div>
+          <div class="form-foot">
+            <span class="err" id="ct-err" role="alert"></span>
+            <button class="btn btn-primary" type="submit" id="ct-send">Send message</button>
+          </div>
+          <p class="review-note" id="ct-done" hidden>Thanks! Your message is in. AZCL will get back to you by email.</p>
+        </form>
+        <aside class="cp-card contact-card">
+          <span class="eyebrow">Arizona Cornhole League</span>
+          <div><span class="muted">Contact</span><b>Athena Delgado</b></div>
+          <div><span class="muted">Email</span><a href="mailto:arizonacornholeleague@gmail.com"><b class="sel">arizonacornholeleague@gmail.com</b></a></div>
+          <div><span class="muted">Follow us</span><span class="chips" data-azcl-socials></span></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
   <!-- CLUB PAGE -->
   <section data-view="club" hidden>
     <div class="wrap page" id="club-page"></div>
@@ -248,7 +299,7 @@
 <footer>
   <div class="wrap">
     <span>© <span id="year">2026</span> Arizona Cornhole League · <button type="button" class="linkbtn footer-app" data-get-app>Get the app</button> · <a href="player.html">Player login</a> · <a href="manage.html">Club login</a> · <a href="admin.html">Admin</a></span>
-    <span>Regulation play: 2 × 4 ft boards, 27 ft front to front</span>
+    <span class="footer-contact"><a href="#contact">Contact</a> · <a href="mailto:arizonacornholeleague@gmail.com">arizonacornholeleague@gmail.com</a> <span class="chips" data-azcl-socials></span></span>
   </div>
 </footer>
 
@@ -352,6 +403,15 @@
       <button class="btn btn-primary" type="submit" id="vendor-save">Submit for review</button>
     </div>
   </form>
+</dialog>
+
+<!-- Calendar / share sheet -->
+<dialog id="dlg-sheet" aria-labelledby="sheet-title">
+  <div class="dlg-head">
+    <div><h2 id="sheet-title">Add to calendar</h2><p id="sheet-sub"></p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <div class="sheet-body" id="sheet-body"></div>
 </dialog>
 
 <!-- Get the app dialog -->
@@ -479,9 +539,9 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111847"></script>
-<script src="common.js?v=202611111847"></script>
-<script src="app.js?v=202611111847"></script>
+<script src="config.js?v=202611111911"></script>
+<script src="common.js?v=202611111911"></script>
+<script src="app.js?v=202611111911"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>
