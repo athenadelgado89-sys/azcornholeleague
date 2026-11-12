@@ -1,4 +1,5 @@
 /* AZCL site styles. Layout: a navy "flag band" header and hero, then a cool light working surface for the directories and calendar. */
+[hidden]{display:none!important}
 :root{
   --bg:#F3F5FA; --surface:#FFFFFF; --sunk:#E9EDF6; --ink:#15203B; --muted:#5A6479; --line:#D8DEEA;
   --band:#13265C; --band-2:#0E1D49; --band-ink:#F4F1E8; --band-muted:#B7C1DC;
@@ -425,3 +426,26 @@ table.results td:first-child{white-space:nowrap;font-variant-numeric:tabular-num
 .sheet-copy{display:flex;gap:8px}
 .sheet-copy input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:13px}
 .event-hl{outline:3px solid var(--gold);outline-offset:2px;transition:outline-color 1s ease}
+
+/* Admin traffic */
+.traffic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+@media (max-width:860px){.traffic-grid{grid-template-columns:minmax(0,1fr)}}
+.traffic-grid .ed-card{margin:0}
+.chart-wrap{position:relative}
+.chart-wrap svg{display:block;width:100%;height:auto}
+.cbar-fill{fill:var(--copper)}
+.cbar.on .cbar-fill{fill:color-mix(in srgb,var(--copper) 80%,var(--ink))}
+.cgrid{stroke:var(--line);stroke-width:1}
+.cax{fill:var(--muted);font-size:11px;font-family:var(--body)}
+.ctip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap}
+.hbars{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.hbars li{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13px}
+.hb-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-track{height:10px;background:var(--sunk);border-radius:5px;overflow:hidden}
+.hb-bar{display:block;height:100%;background:var(--copper);border-radius:0 4px 4px 0}
+.hbars b{font-variant-numeric:tabular-nums}
+.hbars small{font-weight:600;color:var(--muted)}
+.traffic-grid{align-items:start}
+.traffic-grid .ed-card{align-content:start}
+.hbars li{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 84px}
+.hbars b{text-align:right}

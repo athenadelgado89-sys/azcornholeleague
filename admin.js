@@ -144,7 +144,7 @@
 
   function render() {
     const pc = A.clubs.filter(x => x.status === "pending"), pv = A.vendors.filter(x => x.status === "pending"), pe = A.events.filter(x => x.status === "pending");
-    $("#count-pending").textContent = pc.length + pv.length + pe.length;
+    $("#count-pending").textContent = pc.length + pv.length + pe.length; $("#count-pending").hidden = !(pc.length + pv.length + pe.length);
     const unlinked = A.orgs.filter(o => !o.ignored && !A.clubs.some(c => c.scoreholio_organizer_id === o.id));
     $("#count-sh").textContent = unlinked.length; $("#count-sh").hidden = !unlinked.length;
     const newMsgs = (A.msgs || []).filter(m => !m.handled).length;
@@ -164,6 +164,8 @@
       body.innerHTML = renderPlayersAdmin();
     } else if (A.tab === "season") {
       body.innerHTML = renderSeasonAdmin();
+    } else if (A.tab === "traffic") {
+      renderTraffic();
     } else if (A.tab === "messages") {
       if (!A.msgsReady) { body.innerHTML = `<div class="notice">The contact form isn't set up yet. Run 11-contact.sql in Supabase first.</div>`; return; }
       body.innerHTML = A.msgs.length ? `<div class="queue">${A.msgs.map(m => `<article class="qitem" style="${m.handled ? "opacity:.65" : ""}">
@@ -256,6 +258,97 @@
     return intro + (toLink ? h(`Needs a club (${unlinked.length})`) + toLink : "") + (linkedHtml ? h(`Linked (${linked.length})`) + linkedHtml : "") + (ignoredHtml ? h(`Ignored (${ignored.length})`) + ignoredHtml : "")
       + `<p style="color:var(--muted);font-size:13px;margin-top:20px">New links take effect at the next hourly import. To import right away, open the GitHub repository → Actions → Sync Scoreholio events → Run workflow.</p>`;
   }
+
+  /* ---------- Traffic ---------- */
+  const PAGE_NAMES = { home: "Home", clubs: "Club Directory", vendors: "Vendor Directory", events: "AZ Events", players: "Players", contact: "Contact", "player-login": "Player login", "club-login": "Club login" };
+  const ACTION_NAMES = { scoreholio: "Clicks to Scoreholio", calendar: "Added to calendar", share: "Shared an event", contact: "Contact messages", install: "App installs" };
+  function pageLabel(p) {
+    if (p.name === "club") { const c = A.clubs.find(x => x.id === p.target); return `Club page: ${c ? c.name : "removed club"}`; }
+    if (p.name === "player") { const x = (A.players || []).find(y => y.id === p.target); return `Player: ${x ? x.display_name : "profile"}`; }
+    if (p.name === "event") { const x = A.events.find(y => y.id === p.target); return `Shared event: ${x ? x.title : "event"}`; }
+    return PAGE_NAMES[p.name] || p.name;
+  }
+  async function renderTraffic() {
+    const body = $("#admin-body"), days = A.trafficDays || 30;
+    const ranges = `<div class="seg" role="group" aria-label="Date range" style="margin-bottom:16px">${[7, 30, 90].map(d => `<button type="button" data-days="${d}" aria-pressed="${d === days}">Last ${d} days</button>`).join("")}</div>`;
+    body.innerHTML = ranges + `<div class="empty"><b>Loading traffic…</b></div>`;
+    const { data, error } = await sb.rpc("traffic_summary", { days });
+    if (A.tab !== "traffic") return;
+    if (error) { body.innerHTML = `<div class="notice">Traffic stats aren't set up yet. Run 12-traffic.sql in Supabase first.</div>`; return; }
+    const t = data.totals || {}, fmt = n => Number(n || 0).toLocaleString();
+    // Fill in days with no visits so the chart has one bar per day
+    const byDay = Object.fromEntries((data.daily || []).map(d => [d.day, d]));
+    const series = [];
+    const today = new Date(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Phoenix" }).format(new Date()) + "T12:00:00Z");
+    for (let i = days - 1; i >= 0; i--) { const d = new Date(today.getTime() - i * 864e5).toISOString().slice(0, 10); series.push({ day: d, views: (byDay[d] || {}).views || 0, visitors: (byDay[d] || {}).visitors || 0 }); }
+    const devices = data.devices || {}, devTotal = Object.values(devices).reduce((a, b) => a + b, 0) || 1;
+    const actions = data.actions || {};
+    const tile = (n, l) => `<div class="pl-stat"><b>${n}</b><span>${l}</span></div>`;
+    body.innerHTML = ranges + `
+      <div class="pl-stats" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:0">
+        ${tile(fmt(t.visitors), "Visitors")}${tile(fmt(t.views), "Page views")}${tile(fmt(t.app_views), "Views in the app")}${tile(fmt(t.scoreholio), "Clicks to Scoreholio")}
+      </div>
+      <section class="ed-card" style="margin-top:16px">
+        <h2 style="font-size:20px">Page views per day</h2>
+        ${barChart(series)}
+        <details><summary class="linkbtn" style="cursor:pointer">Show as a table</summary>
+          <div class="table-wrap" style="margin-top:8px"><table class="results"><thead><tr><th>Date</th><th>Page views</th><th>Visitors</th></tr></thead><tbody>
+          ${series.slice().reverse().map(d => `<tr><td>${esc(fmtDate(d.day))}</td><td>${fmt(d.views)}</td><td>${fmt(d.visitors)}</td></tr>`).join("")}</tbody></table></div>
+        </details>
+      </section>
+      <div class="traffic-grid">
+        <section class="ed-card"><h2 style="font-size:20px">Top pages</h2>${hbars((data.pages || []).map(p => ({ label: pageLabel(p), value: p.views })), "No page views yet.")}</section>
+        <section class="ed-card"><h2 style="font-size:20px">Where visitors came from</h2>${hbars((data.refs || []).map(r => ({ label: r.ref, value: r.visits })), "No outside links yet. Visits from Facebook, Google or other sites show here.")}</section>
+        <section class="ed-card"><h2 style="font-size:20px">Devices</h2>${hbars(["mobile", "desktop", "tablet"].filter(k => devices[k]).map(k => ({ label: k[0].toUpperCase() + k.slice(1), value: devices[k], suffix: ` · ${Math.round(devices[k] / devTotal * 100)}%` })), "No visits yet.")}</section>
+        <section class="ed-card"><h2 style="font-size:20px">What visitors did</h2>${hbars(Object.keys(ACTION_NAMES).filter(k => actions[k]).map(k => ({ label: ACTION_NAMES[k], value: actions[k] })), "No clicks recorded yet.")}</section>
+      </div>
+      <p class="via">Anonymous counts: no cookies, names or IP addresses are stored. Visits from your own admin page aren't counted.</p>`;
+    bindChartHover();
+  }
+  function hbars(rows, empty) {
+    if (!rows.length) return `<p class="muted" style="margin:0">${empty}</p>`;
+    const max = Math.max(...rows.map(r => r.value)) || 1;
+    return `<ul class="hbars">${rows.map(r => `<li><span class="hb-label">${esc(r.label)}</span><span class="hb-track"><span class="hb-bar" style="width:${Math.max(2, r.value / max * 100)}%"></span></span><b>${Number(r.value).toLocaleString()}${r.suffix ? `<small>${esc(r.suffix)}</small>` : ""}</b></li>`).join("")}</ul>`;
+  }
+  function barChart(series) {
+    const W = 760, H = 220, padL = 36, padB = 26, padT = 10, n = series.length;
+    const max = Math.max(4, ...series.map(d => d.views));
+    const step = Math.pow(10, Math.floor(Math.log10(max))), nice = Math.ceil(max / step) * step;
+    const ticks = [0, nice / 2, nice];
+    const bw = (W - padL) / n, gap = Math.min(2, bw * 0.2);
+    const y = v => padT + (H - padT - padB) * (1 - v / nice);
+    const labelEvery = Math.ceil(n / 8);
+    const bars = series.map((d, i) => {
+      const x = padL + i * bw + gap / 2, w = Math.max(1, bw - gap), top = y(d.views), h = H - padB - top;
+      const r = Math.min(4, w / 2, h);
+      const path = h <= 0 ? "" : `M${x},${H - padB} V${top + r} Q${x},${top} ${x + r},${top} H${x + w - r} Q${x + w},${top} ${x + w},${top + r} V${H - padB} Z`;
+      return `<g class="cbar" data-tip="${esc(fmtDate(d.day))}: ${d.views} page view${d.views === 1 ? "" : "s"}, ${d.visitors} visitor${d.visitors === 1 ? "" : "s"}">
+        <rect x="${padL + i * bw}" y="${padT}" width="${bw}" height="${H - padT - padB}" fill="transparent"/>
+        ${path ? `<path d="${path}" class="cbar-fill"/>` : ""}
+        ${i % labelEvery === 0 ? `<text x="${x + w / 2}" y="${H - 8}" text-anchor="middle" class="cax">${new Date(d.day + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</text>` : ""}
+      </g>`;
+    }).join("");
+    const grid = ticks.map(v => `<line x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="cgrid"/><text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" class="cax">${v}</text>`).join("");
+    return `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Page views per day">${grid}${bars}</svg><div class="ctip" hidden></div></div>`;
+  }
+  function bindChartHover() {
+    const wrap = document.querySelector(".chart-wrap"); if (!wrap) return;
+    const tip = wrap.querySelector(".ctip");
+    wrap.addEventListener("pointermove", e => {
+      const g = e.target.closest(".cbar");
+      wrap.querySelectorAll(".cbar.on").forEach(x => x !== g && x.classList.remove("on"));
+      if (!g) { tip.hidden = true; return; }
+      g.classList.add("on"); tip.textContent = g.dataset.tip; tip.hidden = false;
+      const r = wrap.getBoundingClientRect();
+      tip.style.left = Math.min(r.width - tip.offsetWidth, Math.max(0, e.clientX - r.left - tip.offsetWidth / 2)) + "px";
+      tip.style.top = Math.max(0, e.clientY - r.top - 44) + "px";
+    });
+    wrap.addEventListener("pointerleave", () => { tip.hidden = true; wrap.querySelectorAll(".cbar.on").forEach(x => x.classList.remove("on")); });
+  }
+  document.addEventListener("click", e => {
+    const d = e.target.closest("[data-days]"); if (!d) return;
+    A.trafficDays = Number(d.dataset.days); renderTraffic();
+  });
 
   /* ---------- Players ---------- */
   function renderPlayersAdmin() {

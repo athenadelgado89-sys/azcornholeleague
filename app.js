@@ -29,6 +29,7 @@
     document.querySelectorAll("[data-nav]").forEach(a => (a.dataset.nav === navKey ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     window.scrollTo(0, 0);
     if (v === "club") renderClubPage(); else document.title = "Arizona Cornhole League";
+    window.AZCL.track("view", eventMatch ? "event" : v, S.pageClub || S.pagePlayer || S.pageEvent || null);
     if (v === "players") loadPlayers().then(renderPlayers);
     if (v === "player") renderPlayerPage();
     if (S.pageEvent && S.loaded) focusEvent();
@@ -755,8 +756,15 @@
       catch { const i = $("#share-url"); i.focus(); i.select(); toast("Press Copy to copy the link."); }
     });
   }
+  // Count clicks out to Scoreholio (registrations and brackets) for the Traffic tab
+  document.addEventListener("click", e => {
+    const a = e.target.closest('a[href*="scoreholio.com"]');
+    if (a) window.AZCL.track("action", "scoreholio", (a.closest("[id^='event-']") || {}).id || null);
+  }, true);
   document.addEventListener("click", e => {
     const c = e.target.closest("[data-cal]"), sh = e.target.closest("[data-share]"), ics = e.target.closest("[data-ics]");
+    if (c) window.AZCL.track("action", "calendar", c.dataset.cal);
+    if (sh) window.AZCL.track("action", "share", sh.dataset.share);
     if (!c && !sh && !ics) return;
     const id = (c || sh || ics).dataset.cal || (c || sh || ics).dataset.share || (c || sh || ics).dataset.ics;
     const ev = S.events.find(x => x.id === id); if (!ev) return;
@@ -792,6 +800,7 @@
       if (error) throw error;
       $("#contact-form").reset(); $("#ct-org-wrap").hidden = false; $("#ct-done").hidden = false;
       toast("Message sent. Thank you!");
+      window.AZCL.track("action", "contact", v("topic") || null);
     } catch (x) { err.textContent = "Couldn't send. Please email arizonacornholeleague@gmail.com instead."; }
     finally { btn.disabled = false; btn.textContent = "Send message"; }
   });
@@ -806,7 +815,8 @@
     const platform = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios" : /Android/i.test(ua) ? "android" : "desktop";
     let deferred = null;
     addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; $("#app-install").hidden = false; });
-    addEventListener("appinstalled", () => { btns().forEach(b => b.remove()); closeDlg($("#dlg-app")); toast("AZCL is installed. Look for it on your home screen."); });
+    addEventListener("appinstalled", () => {
+      window.AZCL.track("action", "install", null); btns().forEach(b => b.remove()); closeDlg($("#dlg-app")); toast("AZCL is installed. Look for it on your home screen."); });
     function showSteps(all) {
       document.querySelectorAll("#dlg-app [data-platform]").forEach(sec => (sec.hidden = !all && sec.dataset.platform !== platform));
       const more = $("#app-more"); if (more) more.hidden = all;

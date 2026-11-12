@@ -195,6 +195,7 @@
     finally { btn.disabled = false; }
   });
 
+  window.AZCL.track && window.AZCL.track("view", "player-login", null);
   setMode("signup");
   start();
 })();

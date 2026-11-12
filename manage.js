@@ -230,6 +230,7 @@
     finally { btn.disabled = false; }
   });
 
+  window.AZCL.track && window.AZCL.track("view", "club-login", null);
   setMode("signin");
   start();
 })();

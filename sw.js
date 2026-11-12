@@ -1,7 +1,7 @@
 // AZCL app service worker: keeps the site shell available offline.
 // Pages and scripts are fetched fresh when online (so updates show right away) and fall back to the cache offline.
 // Database calls (Supabase) and other sites are never cached here.
-const CACHE = "azcl-v2";
+const CACHE = "azcl-v3";
 const SHELL = ["/", "/index.html", "/styles.css", "/config.js", "/common.js", "/app.js", "/assets/logo.png", "/assets/mark.png", "/assets/icon-192.png"];
 
 self.addEventListener("install", e => {
