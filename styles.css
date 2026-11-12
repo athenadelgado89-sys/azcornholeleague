@@ -382,3 +382,6 @@ table.results td:first-child{white-space:nowrap;font-variant-numeric:tabular-num
 .footer-app{font-size:13px;color:var(--muted)}
 .app-steps{padding:18px 22px 22px;display:grid;gap:14px}
 .app-steps section{border-top:1px solid var(--line);padding-top:12px}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@media (max-width:520px){.top-actions{width:100%}.top-actions .btn{flex:1 1 auto;justify-content:center}}
+@media (max-width:520px){.top-actions .app-btn{order:0}}
