@@ -320,9 +320,40 @@
     $("#stat-vendors").textContent = S.loaded ? S.vendors.length : "–";
     $("#stat-events").textContent = S.loaded ? S.events.filter(e => e.event_date >= t).length : "–";
   }
+  // Scrolling strip of club logos on the home page (only clubs that have uploaded a logo)
+  let tickerKey = "";
+  function renderTicker() {
+    const box = $("#club-ticker"), track = $("#ticker-track"); if (!box) return;
+    const withLogos = S.clubs.filter(c => c.logo_path);
+    const key = withLogos.map(c => c.id + c.logo_path).join("|");
+    if (key === tickerKey) return; tickerKey = key;
+    if (withLogos.length < 3) { box.hidden = true; return; }
+    const item = (c, dup) => `<a class="ticker-item" href="#club-${esc(c.id)}" title="${esc(c.name)}"${dup ? ' aria-hidden="true" tabindex="-1"' : ""}><img src="${esc(fileUrl(c.logo_path))}" alt="${dup ? "" : esc(c.name)}" loading="lazy"><span>${esc(c.name)}</span></a>`;
+    // The list is repeated once so the loop scrolls without a gap
+    track.innerHTML = withLogos.map(c => item(c, false)).join("") + withLogos.map(c => item(c, true)).join("");
+    track.style.setProperty("--ticker-duration", Math.max(20, withLogos.length * 4) + "s");
+    box.hidden = false;
+  }
+
+  // Live countdowns on event cards: <div data-countdown="ISO time">
+  let countdownTimer = null;
+  function tickCountdowns() {
+    const now = Date.now();
+    document.querySelectorAll("[data-countdown]").forEach(el => {
+      let ms = new Date(el.dataset.countdown).getTime() - now;
+      if (!(ms > 0)) { el.innerHTML = `<span class="cd-live">It's event weekend!</span>`; el.removeAttribute("data-countdown"); return; }
+      const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, sec = Math.floor(ms / 1e3) % 60;
+      el.querySelectorAll("[data-u]").forEach(c => (c.textContent = { d, h, m, s: sec }[c.dataset.u]));
+    });
+  }
+  function startCountdowns() {
+    tickCountdowns();
+    if (!countdownTimer && document.querySelector("[data-countdown]")) countdownTimer = setInterval(tickCountdowns, 1000);
+  }
+
   function render() {
     document.querySelectorAll(".db-note").forEach(n => (n.innerHTML = statusNote()));
-    renderStats(); renderClubs(); renderVendors(); renderClubOptions(); renderEvents();
+    renderStats(); renderClubs(); renderVendors(); renderClubOptions(); renderEvents(); renderTicker();
     if (S.pageClub) renderClubPage();
     if (S.pagePlayer) renderPlayerPage();
     if (S.players) renderPlayers();
@@ -374,6 +405,9 @@
           <span class="sre-num">${e.kind === "championship" ? "Season finale" : `State Region Event ${e.slot}`}</span>
           <h3>${title}</h3>
           ${(e.dates_text || where) ? `<p class="sre-when">${e.dates_text ? `<b>${esc(e.dates_text)}</b>` : ""}${where ? `<span>${esc(where)}</span>` : ""}</p>` : ""}
+          ${e.starts_at && new Date(e.starts_at) > new Date() ? `<div class="sre-count" data-countdown="${esc(e.starts_at)}" role="timer" aria-label="Countdown to ${esc(e.title || "the event")}">
+            ${[["d", "Days"], ["h", "Hours"], ["m", "Minutes"], ["s", "Seconds"]].map(([u, l]) => `<div><b data-u="${u}">–</b><span>${l}</span></div>`).join("")}
+          </div>` : ""}
           ${e.blurb ? `<p class="sre-blurb">${esc(e.blurb)}</p>` : ""}
           <div class="sre-actions">
             ${safeHref(e.register_url) ? `<a class="btn btn-primary" href="${esc(e.register_url)}" target="_blank" rel="noopener">Register on Scoreholio ↗</a>` : ""}
@@ -402,6 +436,7 @@
       ${set.map(feature).join("")}
       ${soon.length ? `<div class="sre-grid">${soon.map(e => `<article class="sre-soon"><span class="sre-num">State Region Event ${e.slot}</span><b>${esc(e.dates_text || "Date TBA")}</b><span class="sre-soon-tag">Coming soon</span><button class="linkbtn" type="button" data-host="${e.slot}">Request to host →</button></article>`).join("")}</div>` : ""}
       ${champs.map(champCard).join("")}`;
+    startCountdowns();
   }
   async function loadSeason() {
     const [ev, sp] = await Promise.all([
@@ -674,5 +709,5 @@
     });
   })();
 
-  route(); render(); load();
+  route(); render(); load(); startCountdowns();
 })();

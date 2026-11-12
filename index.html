@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202611111757">
+<link rel="stylesheet" href="styles.css?v=202611111847">
 </head>
 <body>
 <header class="top">
@@ -79,6 +79,7 @@
             <span class="sre-num">State Region Event 1</span>
             <h3>Wild West <span class="t2">Shoot Out</span></h3>
             <p class="sre-when"><b>January 15–17, 2027</b><span>Dink &amp; Dine Pickle Park · Mesa, AZ</span></p>
+            <div class="sre-count" data-countdown="2027-01-15T14:00:00-07:00" role="timer" aria-label="Countdown to the Wild West Shoot Out"><div><b data-u="d">–</b><span>Days</span></div><div><b data-u="h">–</b><span>Hours</span></div><div><b data-u="m">–</b><span>Minutes</span></div><div><b data-u="s">–</b><span>Seconds</span></div></div>
             <p class="sre-blurb">The inaugural event of the Arizona Cornhole League. Three days of Open and Rec singles and doubles, Crew Cup, Switcholio and invitationals, with something for every skill level.</p>
             <div class="sre-actions">
               <a class="btn btn-primary" href="https://app.scoreholio.com/v2/cornhole/player/findtournament?location=disabled&amp;lat=&amp;lng=&amp;customType=Organizer&amp;customId=GkSY6KWPK1WOTzZbW3j2IR5Ioxe2&amp;cache=1794426766" target="_blank" rel="noopener">Register on Scoreholio ↗</a>
@@ -135,6 +136,11 @@
           <span class="go">Browse vendors →</span>
         </a>
       </div>
+
+      <section class="ticker" id="club-ticker" aria-label="Clubs in the AZ Cornhole Club Directory" hidden>
+        <div class="ticker-head"><span class="eyebrow">AZ Cornhole Club Directory</span><a class="linkbtn" href="#clubs">See all clubs →</a></div>
+        <div class="ticker-viewport"><div class="ticker-track" id="ticker-track"></div></div>
+      </section>
 
       <div class="soon">
         <h3>Coming later</h3>
@@ -473,9 +479,9 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111757"></script>
-<script src="common.js?v=202611111757"></script>
-<script src="app.js?v=202611111757"></script>
+<script src="config.js?v=202611111847"></script>
+<script src="common.js?v=202611111847"></script>
+<script src="app.js?v=202611111847"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

@@ -284,6 +284,7 @@
           </div>
           <div class="row2">${f(id, "title", "Event name", 'maxlength="80"', e.title)}${f(id, "dates", "Dates", 'maxlength="80" placeholder="e.g. March 6–8, 2027"', e.dates_text)}</div>
           <div class="row2">${f(id, "venue", "Venue", 'maxlength="120"', e.venue)}${f(id, "city", "City", 'maxlength="60"', e.city)}</div>
+          ${"starts_at" in e ? `<div class="fld"><label for="s${id}-starts">Countdown to <span class="hint">Arizona time. Leave blank for no countdown.</span></label><input id="s${id}-starts" type="datetime-local" value="${e.starts_at ? new Date(new Date(e.starts_at).getTime() - 7 * 36e5).toISOString().slice(0, 16) : ""}" style="max-width:260px"></div>` : ""}
           <div class="fld"><label for="s${id}-blurb">Short description</label><textarea id="s${id}-blurb" maxlength="500" rows="3">${esc(e.blurb || "")}</textarea></div>
           <div class="row2">${f(id, "details", "Event website", 'type="url" placeholder="https://"', e.details_url)}${f(id, "register", "Scoreholio registration link", 'type="url" placeholder="https://"', e.register_url)}</div>
           <div class="fld"><label for="s${id}-logo">Event logo <span class="hint">PNG, JPG or WebP, up to 5 MB</span></label>
@@ -336,6 +337,8 @@
       const u = window.AZCL.normUrl(v(k)); if (u === null) throw new Error(`the ${label} isn't a valid web address`); data[col] = u || null;
     }
     if (data.status === "set" && !data.title) throw new Error("add the event name before marking it confirmed");
+    const st = document.getElementById(`s${slot}-starts`);
+    if (st) data.starts_at = st.value ? st.value + ":00-07:00" : null;  // Arizona doesn't use daylight saving
     if (A.season.some(x => "theme_font" in x)) {
       const custom = document.getElementById(`s${slot}-theme`).checked;
       for (const k of ["bg", "text", "accent", "highlight"]) data["theme_" + k] = custom ? document.getElementById(`s${slot}-c-${k}`).value : null;
