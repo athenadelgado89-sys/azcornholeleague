@@ -6,8 +6,16 @@
 <meta name="robots" content="noindex">
 <title>AZCL Admin</title>
 <link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0E1D49">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AZCL">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202611111636">
+<link rel="stylesheet" href="styles.css?v=202611111753">
 </head>
 <body>
 <header class="top">
@@ -61,8 +69,9 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111636"></script>
-<script src="common.js?v=202611111636"></script>
-<script src="admin.js?v=202611111636"></script>
+<script src="config.js?v=202611111753"></script>
+<script src="common.js?v=202611111753"></script>
+<script src="admin.js?v=202611111753"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

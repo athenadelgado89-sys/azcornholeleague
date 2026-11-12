@@ -643,5 +643,36 @@
     finally { btn.disabled = false; btn.textContent = "Submit event"; }
   });
 
+  /* ---------- Get the app (installable web app) ---------- */
+  (() => {
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    const btns = () => document.querySelectorAll("[data-get-app]");
+    if (standalone) { btns().forEach(b => b.remove()); return; }
+    btns().forEach(b => (b.hidden = false));
+    const ua = navigator.userAgent;
+    const platform = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios" : /Android/i.test(ua) ? "android" : "desktop";
+    let deferred = null;
+    addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred = e; $("#app-install").hidden = false; });
+    addEventListener("appinstalled", () => { btns().forEach(b => b.remove()); closeDlg($("#dlg-app")); toast("AZCL is installed. Look for it on your home screen."); });
+    function showSteps(all) {
+      document.querySelectorAll("#dlg-app [data-platform]").forEach(sec => (sec.hidden = !all && sec.dataset.platform !== platform));
+      const more = $("#app-more"); if (more) more.hidden = all;
+    }
+    const steps = $("#dlg-app .app-steps");
+    steps.querySelector(".form-foot").insertAdjacentHTML("beforebegin", `<button type="button" class="linkbtn" id="app-more" style="justify-self:start">Show steps for other devices</button>`);
+    $("#app-more").addEventListener("click", () => showSteps(true));
+    document.addEventListener("click", e => {
+      if (!e.target.closest("[data-get-app]")) return;
+      showSteps(false); openDlg("dlg-app");
+    });
+    $("#app-install").addEventListener("click", async () => {
+      if (!deferred) return;
+      deferred.prompt();
+      const { outcome } = await deferred.userChoice;
+      deferred = null; $("#app-install").hidden = true;
+      if (outcome === "accepted") closeDlg($("#dlg-app"));
+    });
+  })();
+
   route(); render(); load();
 })();

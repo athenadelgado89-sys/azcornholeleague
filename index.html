@@ -9,10 +9,18 @@
 <meta property="og:description" content="AZ Programs. AZ Points. AZ Players. All in one state.">
 <meta property="og:image" content="https://azcornholeleague.com/assets/logo.png">
 <link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0E1D49">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AZCL">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Big+Shoulders+Display:wght@600;800;900&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="styles.css?v=202611111636">
+<link rel="stylesheet" href="styles.css?v=202611111753">
 </head>
 <body>
 <header class="top">
@@ -28,6 +36,7 @@
       <a href="#events" data-nav="events">AZ Events</a>
       <a href="#players" data-nav="players">Players</a>
     </nav>
+    <button class="btn btn-ghost btn-sm app-btn" type="button" data-get-app hidden>Get the app</button>
     <button class="btn btn-primary btn-sm" type="button" data-open="event">Post Event Here</button>
   </div>
 </header>
@@ -229,7 +238,7 @@
 
 <footer>
   <div class="wrap">
-    <span>© <span id="year">2026</span> Arizona Cornhole League · <a href="player.html">Player login</a> · <a href="manage.html">Club login</a> · <a href="admin.html">Admin</a></span>
+    <span>© <span id="year">2026</span> Arizona Cornhole League · <button type="button" class="linkbtn footer-app" data-get-app>Get the app</button> · <a href="player.html">Player login</a> · <a href="manage.html">Club login</a> · <a href="admin.html">Admin</a></span>
     <span>Regulation play: 2 × 4 ft boards, 27 ft front to front</span>
   </div>
 </footer>
@@ -336,6 +345,41 @@
   </form>
 </dialog>
 
+<!-- Get the app dialog -->
+<dialog id="dlg-app" aria-labelledby="app-title">
+  <div class="dlg-head">
+    <div><h2 id="app-title">Get the AZCL app</h2><p>Add AZCL to your home screen. It opens full screen with its own icon, like any other app. It's free and doesn't need an app store.</p></div>
+    <button class="x" type="button" data-close aria-label="Close">×</button>
+  </div>
+  <div class="f app-steps">
+    <div class="app-icon-row"><img src="assets/icon-192.png" alt="" width="64" height="64"><div><b>Arizona Cornhole League</b><span>azcornholeleague.com</span></div></div>
+    <section data-platform="ios">
+      <h3>iPhone or iPad</h3>
+      <ol>
+        <li>Open <b>azcornholeleague.com</b> in <b>Safari</b>.</li>
+        <li>Tap the <b>Share</b> button <span aria-hidden="true">(the square with an arrow pointing up)</span>.</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+      </ol>
+    </section>
+    <section data-platform="android">
+      <h3>Android</h3>
+      <ol>
+        <li>Open <b>azcornholeleague.com</b> in <b>Chrome</b>.</li>
+        <li>Tap the <b>⋮</b> menu in the top right.</li>
+        <li>Tap <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</li>
+      </ol>
+    </section>
+    <section data-platform="desktop">
+      <h3>Computer</h3>
+      <ol>
+        <li>In <b>Chrome</b> or <b>Edge</b>, click the install icon at the right end of the address bar.</li>
+        <li>Click <b>Install</b>.</li>
+      </ol>
+    </section>
+    <div class="form-foot"><button class="btn btn-primary" type="button" id="app-install" hidden>Install now</button><button class="btn btn-ghost" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+
 <!-- Host request dialog -->
 <dialog id="dlg-host" aria-labelledby="host-title">
   <div class="dlg-head">
@@ -426,8 +470,9 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111636"></script>
-<script src="common.js?v=202611111636"></script>
-<script src="app.js?v=202611111636"></script>
+<script src="config.js?v=202611111753"></script>
+<script src="common.js?v=202611111753"></script>
+<script src="app.js?v=202611111753"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});</script>
 </body>
 </html>

@@ -368,3 +368,17 @@ table.results td:first-child{white-space:nowrap;font-variant-numeric:tabular-num
 .evc-date b{font-size:15px;color:var(--copper)}
 .evc-main{flex:1;min-width:0;display:grid}
 .evc-main span{font-size:13px;color:var(--muted)}
+
+/* Get the app */
+.top .app-btn{color:var(--band-ink);border-color:rgba(255,255,255,.3)}
+.top .app-btn:hover{background:rgba(255,255,255,.08)}
+@media (max-width:520px){.top .app-btn{order:3}}
+.app-steps h3{font-family:var(--body);font-size:16px;font-weight:800;margin:4px 0 6px}
+.app-steps ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.app-icon-row{display:flex;gap:12px;align-items:center}
+.app-icon-row img{border-radius:14px;box-shadow:0 4px 14px -6px rgba(0,0,0,.4)}
+.app-icon-row div{display:grid}
+.app-icon-row span{font-size:13px;color:var(--muted)}
+.footer-app{font-size:13px;color:var(--muted)}
+.app-steps{padding:18px 22px 22px;display:grid;gap:14px}
+.app-steps section{border-top:1px solid var(--line);padding-top:12px}
